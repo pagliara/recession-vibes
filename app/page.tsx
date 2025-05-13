@@ -1,4 +1,6 @@
-import type { Metadata } from "next"
+"use client"
+
+import { useState } from "react"
 import { YieldCurveChart } from "@/components/charts/yield-curve-chart"
 import { UnemploymentChart } from "@/components/charts/unemployment-chart"
 import { GdpGrowthChart } from "@/components/charts/gdp-growth-chart"
@@ -7,14 +9,25 @@ import { LeadingIndicatorsChart } from "@/components/charts/leading-indicators-c
 import { HousingStartsChart } from "@/components/charts/housing-starts-chart"
 import { RecessionProbabilityGauge } from "@/components/recession-probability-gauge"
 import { LatestBlogPost } from "@/components/latest-blog-post"
+import { DateRangeSelector } from "@/components/date-range-selector"
 import { calculateRecessionProbability } from "@/lib/calculate-recession-probability"
 
-export const metadata: Metadata = {
-  title: "Recession Indicators Dashboard",
-  description: "Weekly tracking of key economic indicators that signal recession risk",
-}
-
 export default function RecessionDashboard() {
+  // State for date range
+  const [dateRange, setDateRange] = useState({
+    startDate: (() => {
+      const date = new Date();
+      date.setFullYear(date.getFullYear() - 5); // Set to 5 years ago
+      return date.toISOString().split('T')[0];
+    })(),
+    endDate: new Date().toISOString().split('T')[0],
+  })
+
+  // Handle date range changes
+  const handleDateRangeChange = (range: { startDate: string; endDate: string }) => {
+    setDateRange(range)
+  }
+  
   // Calculate the recession probability
   const recessionProbability = calculateRecessionProbability()
 
@@ -26,6 +39,12 @@ export default function RecessionDashboard() {
           Weekly tracking of key economic indicators that signal recession risk
         </p>
       </div>
+      
+      <DateRangeSelector 
+        onDateRangeChange={handleDateRangeChange}
+        startDate={dateRange.startDate}
+        endDate={dateRange.endDate}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <div className="lg:col-span-2">
@@ -37,7 +56,7 @@ export default function RecessionDashboard() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <YieldCurveChart />
+        <YieldCurveChart startDate={dateRange.startDate} endDate={dateRange.endDate} />
         <UnemploymentChart />
         <GdpGrowthChart />
         <ConsumerSentimentChart />

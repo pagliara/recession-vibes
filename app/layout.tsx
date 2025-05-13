@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
+  title: 'Recession Indicators Dashboard',
+  description: 'Weekly tracking of key economic indicators that signal recession risk',
   generator: 'v0.dev',
 }
 

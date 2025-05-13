@@ -52,7 +52,7 @@ const ChartContainer = React.forwardRef<
         data-chart={chartId}
         ref={ref}
         className={cn(
-          "flex aspect-video justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-none [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-sector]:outline-none [&_.recharts-surface]:outline-none",
+          "flex justify-center text-xs [&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-none [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-sector]:outline-none [&_.recharts-surface]:outline-none",
           className
         )}
         {...props}
@@ -138,29 +138,46 @@ const ChartTooltipContent = React.forwardRef<
         return null
       }
 
-      const [item] = payload
-      const key = `${labelKey || item.dataKey || item.name || "value"}`
-      const itemConfig = getPayloadConfigFromPayload(config, item, key)
-      const value =
-        !labelKey && typeof label === "string"
-          ? config[label as keyof typeof config]?.label || label
-          : itemConfig?.label
-
-      if (labelFormatter) {
+      // If labelFormatter is provided, and the 'label' (timestamp from Recharts) is available,
+      // use it directly.
+      if (labelFormatter && typeof label !== 'undefined' && label !== null) {
         return (
           <div className={cn("font-medium", labelClassName)}>
-            {labelFormatter(value, payload)}
+            {labelFormatter(label, payload)} {/* 'label' here is the timestamp from Recharts */}
           </div>
         )
       }
 
-      if (!value) {
+      // Original fallback logic if labelFormatter isn't used or label is undefined.
+      const [item] = payload
+      const key = `${labelKey || item.dataKey || item.name || "value"}`
+      const itemConfig = getPayloadConfigFromPayload(config, item, key)
+      
+      // Determine the value to display. Fallback to the Recharts label if other specific conditions aren't met.
+      let valueToDisplay: React.ReactNode = null;
+      if (!labelKey && typeof label === 'string') {
+        // This case handles if the 'label' prop passed to ChartTooltipContent directly was a string meant for config lookup
+        valueToDisplay = config[label as keyof typeof config]?.label || label;
+      } else if (itemConfig?.label) {
+        valueToDisplay = itemConfig.label;
+      } else if (item.payload && typeof item.payload === 'object' && key in item.payload) {
+        valueToDisplay = String(item.payload[key as keyof typeof item.payload]);
+      } else if (typeof label !== 'undefined' && label !== null) {
+        // Fallback to the direct Recharts label if no other value has been determined
+        valueToDisplay = String(label);
+      }
+
+      if (valueToDisplay === null) {
         return null
       }
 
-      return <div className={cn("font-medium", labelClassName)}>{value}</div>
+      return (
+        <div className={cn("font-medium", labelClassName)}>
+          {valueToDisplay}
+        </div>
+      )
     }, [
-      label,
+      label, // This is the 'label' prop from Recharts (the x-axis value/timestamp)
       labelFormatter,
       payload,
       hideLabel,
