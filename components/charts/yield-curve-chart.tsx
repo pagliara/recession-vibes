@@ -7,12 +7,17 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { Info, Loader2, TrendingDown, TrendingUp } from "lucide-react"
 import { historicalRecessionPeriods } from "@/components/charts/overlays/recession/recession-periods"; 
 import { renderRecessionReferenceAreas } from "@/components/charts/overlays/recession/recession-overlay"; 
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Label as UILabel } from "@/components/ui/label"
 
 // Define the data structure for the yield curve data
 type YieldCurveDataPoint = {
   date: number
   spread: number
 }
+
+// Define the spread type options
+type SpreadType = 'T10Y2Y' | 'T10Y3M';
 
 // Default yield curve data (fallback if API fails)
 export const defaultYieldCurveDataRaw = [
@@ -43,11 +48,42 @@ interface YieldCurveChartProps {
   endDate?: string
 }
 
+// Default yield curve data for T10Y3M (fallback if API fails)
+export const defaultYieldCurveT10Y3MDataRaw = [
+  { date: "2023-01-01", spread: 0.45 },
+  { date: "2023-01-08", spread: 0.42 },
+  { date: "2023-01-15", spread: 0.38 },
+  { date: "2023-01-22", spread: 0.35 },
+  { date: "2023-01-29", spread: 0.31 },
+  { date: "2023-02-05", spread: 0.28 },
+  { date: "2023-02-12", spread: 0.25 },
+  { date: "2023-02-19", spread: 0.20 },
+  { date: "2023-02-26", spread: 0.15 },
+  { date: "2023-03-05", spread: 0.10 },
+  { date: "2023-03-12", spread: 0.05 },
+  { date: "2023-03-19", spread: 0.00 },
+  { date: "2023-03-26", spread: -0.05 },
+  { date: "2023-04-02", spread: -0.10 },
+  { date: "2023-04-09", spread: -0.15 },
+  { date: "2023-04-16", spread: -0.20 },
+  { date: "2023-04-23", spread: -0.25 },
+  { date: "2023-04-30", spread: -0.30 },
+  { date: "2023-05-07", spread: -0.28 },
+  { date: "2023-05-14", spread: -0.25 },
+]
+
 export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
   // State for filtered data (what's displayed in the chart)
   const [data, setData] = useState<YieldCurveDataPoint[]>([])
   // State for the complete dataset (used for historical analysis)
-  const [fullDataset, setFullDataset] = useState<YieldCurveDataPoint[]>([])
+  const [fullDataset, setFullDataset] = useState<{
+    t10y2y: YieldCurveDataPoint[],
+    t10y3m: YieldCurveDataPoint[]
+  }>({
+    t10y2y: [],
+    t10y3m: []
+  })
+  const [spreadType, setSpreadType] = useState<SpreadType>('T10Y2Y')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
@@ -71,6 +107,11 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
       date: new Date(item.date).getTime(),
     }));
   };
+  
+  // Helper function to get the current active dataset based on selected spread type
+  const getCurrentDataset = () => {
+    return spreadType === 'T10Y2Y' ? fullDataset.t10y2y : fullDataset.t10y3m;
+  };
 
   // Fetch all available data from the API just once
   useEffect(() => {
@@ -87,24 +128,41 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
 
         const result = await response.json()
 
-        if (result.success && result.data && result.data.length > 0) {
-          // Store the full dataset
-          const parsedData = parseData(result.data)
-          setFullDataset(parsedData)
+        if (result.success && result.data) {
+          // Store both datasets
+          const parsedT10Y2YData = parseData(result.data.t10y2y)
+          const parsedT10Y3MData = parseData(result.data.t10y3m)
+          
+          setFullDataset({
+            t10y2y: parsedT10Y2YData,
+            t10y3m: parsedT10Y3MData
+          })
           // Initially filtered data will be set in the other useEffect
         } else {
           // Fallback to default data if no results
-          const parsedDefaultData = parseData(defaultYieldCurveDataRaw)
-          setFullDataset(parsedDefaultData)
-          setData(parsedDefaultData)
-          setError('Could not retrieve data from FRED API. Using default data.')
-        }
+          const parsedDefaultT10Y2YData = parseData(defaultYieldCurveDataRaw)
+          const parsedDefaultT10Y3MData = parseData(defaultYieldCurveT10Y3MDataRaw)
+          
+          setFullDataset({
+            t10y2y: parsedDefaultT10Y2YData,
+            t10y3m: parsedDefaultT10Y3MData
+          })
+          
+          // Set initial data based on selected spread type
+          setData(spreadType === 'T10Y2Y' ? parsedDefaultT10Y2YData : parsedDefaultT10Y3MData)
+        } 
       } catch (err: any) {
         console.error('Error fetching treasury yield data:', err)
-        const parsedDefaultData = parseData(defaultYieldCurveDataRaw)
-        setFullDataset(parsedDefaultData)
-        setData(parsedDefaultData)
-        setError(err.message || 'Failed to fetch data')
+        const parsedDefaultT10Y2YData = parseData(defaultYieldCurveDataRaw)
+        const parsedDefaultT10Y3MData = parseData(defaultYieldCurveT10Y3MDataRaw)
+        
+        setFullDataset({
+          t10y2y: parsedDefaultT10Y2YData,
+          t10y3m: parsedDefaultT10Y3MData
+        })
+        
+        setData(spreadType === 'T10Y2Y' ? parsedDefaultT10Y2YData : parsedDefaultT10Y3MData)
+        setError(`Error fetching data: ${err.message}`)
       } finally {
         setLoading(false)
       }
@@ -113,11 +171,16 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
     fetchData()
   }, []) // Only fetch once when component mounts
   
-  // Filter data client-side based on provided date range
+  // Filter data by date range and handle transition points calculation
   useEffect(() => {
-    if (fullDataset.length === 0) return
+    // Skip if no data or still loading
+    if ((fullDataset.t10y2y.length === 0 && fullDataset.t10y3m.length === 0) || loading) {
+      return;
+    }
     
-    let filteredData = [...fullDataset]
+    // Get the current dataset based on selected spread type
+    const currentFullDataset = getCurrentDataset();
+    let filteredData = [...currentFullDataset]
     
     // Apply date filters if provided
     if (startDate || endDate) {
@@ -133,7 +196,7 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
     
     // If no data after filtering (or empty array), use full dataset but show warning
     if (filteredData.length === 0) {
-      filteredData = [...fullDataset]
+      filteredData = [...currentFullDataset];
       setError('No data available for the selected date range. Showing full dataset.')
     } else {
       // Clear any previous errors if we have data
@@ -143,7 +206,7 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
     }
     
     setData(filteredData)
-  }, [fullDataset, startDate, endDate, error]) // Re-filter when date range or full dataset changes
+  }, [fullDataset, startDate, endDate, loading, spreadType]) // Re-filter when date range or full dataset changes
 
   // Use the most recent data points or fallback to defaults
   const currentSpread = data.length > 0 ? data[data.length - 1].spread : 0
@@ -153,16 +216,20 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
 
   // Calculate avg days to recession using full dataset (separate from visible transition points)
   useEffect(() => {
-    if (fullDataset.length < 2) return;
+    // Get the appropriate dataset based on selected spread type
+    const currentDataset = spreadType === 'T10Y2Y' ? fullDataset.t10y2y : fullDataset.t10y3m;
+    
+    // Don't calculate if dataset is too small
+    if (currentDataset.length < 2) return;
 
     // Find all transition points in the full dataset (negative to positive only)
     const fullDatasetTransitions: {date: number}[] = [];
     
-    for (let i = 1; i < fullDataset.length; i++) {
+    for (let i = 1; i < currentDataset.length; i++) {
       // Only include points where previous was negative and current is positive
-      if (fullDataset[i-1].spread < 0 && fullDataset[i].spread >= 0) {
+      if (currentDataset[i-1].spread < 0 && currentDataset[i].spread >= 0) {
         fullDatasetTransitions.push({
-          date: fullDataset[i].date
+          date: currentDataset[i].date
         });
       }
     }
@@ -198,7 +265,7 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
     } else {
       setAverageDaysToRecession(null);
     }
-  }, [fullDataset]); // Only recalculate when the full dataset changes
+  }, [fullDataset, spreadType]); // Recalculate when the full dataset or spread type changes
   
   // Calculate transition points for display in the current view
   useEffect(() => {
@@ -306,22 +373,47 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
   return (
     <section className="pb-6 border-b">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-          <h2 className="text-xl font-semibold">Treasury Yield Curve Spread</h2>
-          <div className="flex items-center gap-2">
-            <div
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-white font-medium ${
-                daysSinceLastTransition !== null && daysSinceLastTransition > 0 ? "bg-red-600" : "bg-green-600"
-              }`}
-            >
-              <span className="text-lg">{(daysSinceLastTransition ?? 0).toFixed(2)} days</span>
-              {daysSinceLastTransition !== null && daysSinceLastTransition > 0 ? <TrendingUp className="h-4 w-4 ml-1" /> : <TrendingDown className="h-4 w-4 ml-1" />}
+        <section className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-lg pr-2">
+              Treasury Yield Curve Spread
+            </h2>
+            <div className="flex items-center gap-2">
+              <div
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-white font-medium ${
+                  daysSinceLastTransition !== null && daysSinceLastTransition > 0 ? "bg-red-600" : "bg-green-600"
+                }`}
+              >
+                <span className="text-lg">{(daysSinceLastTransition ?? 0)} days</span>
+                {daysSinceLastTransition !== null && daysSinceLastTransition > 0 ? <TrendingUp className="h-4 w-4 ml-1" /> : <TrendingDown className="h-4 w-4 ml-1" />}
+              </div>
             </div>
           </div>
-        </div>
+          <div className="mb-4">
+            <RadioGroup
+              value={spreadType}
+              onValueChange={(value) => setSpreadType(value as SpreadType)}
+              className="flex space-x-4"
+              defaultValue="T10Y2Y"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="T10Y2Y" id="t10y2y" />
+                <UILabel htmlFor="t10y2y">10Y-2Y</UILabel>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="T10Y3M" id="t10y3m" />
+                <UILabel htmlFor="t10y3m">10Y-3M</UILabel>
+              </div>
+            </RadioGroup>
+          </div>
+        </section>
         <Badge variant={daysSinceLastTransition !== null && daysSinceLastTransition > 0 ? "destructive" : "outline"}>{daysSinceLastTransition !== null && daysSinceLastTransition > 0 ? "High Risk" : "Low Risk"}</Badge>
       </div>
-      <p className="text-sm text-muted-foreground mb-4">The difference between 10-year and 2-year Treasury yields</p>
+      <p className="text-sm text-muted-foreground mb-4">
+        {spreadType === 'T10Y2Y' 
+          ? "The difference between 10-year and 2-year Treasury yields" 
+          : "The difference between 10-year and 3-month Treasury yields"}
+      </p>
 
       {loading ? (
         <div className="flex items-center justify-center h-[200px] bg-muted/20 rounded-md">
@@ -334,7 +426,7 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
               {error}
             </div>
           )}
-          <div className="h-[400px]">
+          <div className="h-[350px]">
             <ChartContainer
               config={{
                 spread: {
@@ -436,7 +528,7 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
           <div className="flex align-start gap-2 mb-2">
             <Info className="h-8 w-8 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
-            Historically, when the yield curve transitions from negative to positive, 
+            Historically, when the {spreadType === 'T10Y2Y' ? '10Y-2Y' : '10Y-3M'} yield curve transitions from negative to positive, 
             a recession has followed in an average of {averageDaysToRecession} days (approximately {Math.round(averageDaysToRecession/30)} months).
             The circular markers on the chart indicate these transition points.
           </p>
