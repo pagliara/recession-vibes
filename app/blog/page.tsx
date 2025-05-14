@@ -7,6 +7,15 @@ export const metadata: Metadata = {
   description: "Analysis and insights on economic indicators and recession risks",
 }
 
+// Force static pages
+export const dynamic = "force-static";
+
+// CDN cache currently only works on nodejs runtime
+export const runtime = "nodejs";
+
+// Revalidate in seconds
+export const revalidate = 60 * 60 * 24;
+
 export default function BlogIndexPage() {
   // Sort posts by date (newest first)
   const sortedPosts = [...blogPosts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())

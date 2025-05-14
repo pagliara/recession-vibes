@@ -32,27 +32,23 @@ export default function RecessionDashboard() {
   const recessionProbability = calculateRecessionProbability()
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="mb-8">
-        <h2 className="text-2xl font-semibold tracking-tight">Economic Indicators Dashboard</h2>
-        <p className="text-muted-foreground mt-2">
-          Weekly tracking of key economic indicators that signal recession risk
-        </p>
-      </div>
-      
-      <DateRangeSelector 
-        onDateRangeChange={handleDateRangeChange}
-        startDate={dateRange.startDate}
-        endDate={dateRange.endDate}
-      />
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <div className="lg:col-span-2">
+    <div className="container mx-auto py-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 mb-2">
+        <div>
           <RecessionProbabilityGauge probability={recessionProbability} />
         </div>
         <div>
           <LatestBlogPost />
         </div>
+      </div>
+
+      {/* Sticky date range selector */}
+      <div className="sticky top-0 bg-background py-2 z-50 border-b mb-6">
+        <DateRangeSelector 
+          onDateRangeChange={handleDateRangeChange}
+          startDate={dateRange.startDate}
+          endDate={dateRange.endDate}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-8">

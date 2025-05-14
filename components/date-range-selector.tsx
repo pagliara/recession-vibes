@@ -75,7 +75,7 @@ export function DateRangeSelector({ onDateRangeChange, startDate, endDate }: Dat
   }
 
   return (
-    <div className="fixed top-4 right-4 z-50">
+    <div className="w-full flex justify-end mb-4">
       <DropdownMenu>
         <DropdownMenuTrigger className="flex items-center justify-center rounded-full p-2 px-3 bg-primary text-primary-foreground shadow-md hover:bg-primary/90 transition-colors">
           <ClockIcon className="h-5 w-5 mr-2" />
