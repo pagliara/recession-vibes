@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Area, CartesianGrid, ComposedChart, ReferenceArea, ResponsiveContainer, XAxis, YAxis, Label } from "recharts"
+import { Area, CartesianGrid, ComposedChart, ReferenceArea, ResponsiveContainer, ReferenceDot, XAxis, YAxis, Label } from "recharts"
 import { Badge } from "@/components/ui/badge"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Info, Loader2, TrendingDown, TrendingUp } from "lucide-react"
@@ -44,9 +44,25 @@ interface YieldCurveChartProps {
 }
 
 export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
+  // State for filtered data (what's displayed in the chart)
   const [data, setData] = useState<YieldCurveDataPoint[]>([])
+  // State for the complete dataset (used for historical analysis)
+  const [fullDataset, setFullDataset] = useState<YieldCurveDataPoint[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  
+  // Enhanced transition points with recession association
+  type EnhancedTransitionPoint = {
+    index: number;        // Index in the filtered data array
+    date: number;         // Timestamp of the transition
+    daysToRecession?: number; // Days until next recession (optional)
+    recessionName?: string;  // Name of the next recession (optional)
+  };
+  
+  const [transitionPoints, setTransitionPoints] = useState<EnhancedTransitionPoint[]>([])
+  const [averageDaysToRecession, setAverageDaysToRecession] = useState<number | null>(null)
+  const [daysSinceLastTransition, setDaysSinceLastTransition] = useState<number | null>(null)
+  const [recessionRiskPercent, setRecessionRiskPercent] = useState<number | null>(null)
 
   // Helper function to convert date strings to timestamps
   const parseData = (rawData: { date: string; spread: number }[]): YieldCurveDataPoint[] => {
@@ -56,17 +72,14 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
     }));
   };
 
-  // Fetch data from the API
+  // Fetch all available data from the API just once
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true)
       setError(null)
       try {
-        const queryParams = new URLSearchParams()
-        if (startDate) queryParams.append('startDate', startDate)
-        if (endDate) queryParams.append('endDate', endDate)
-
-        const response = await fetch(`/api/treasury-curve?${queryParams}`)
+        // No query params - we want all data
+        const response = await fetch('/api/treasury-curve')
 
         if (!response.ok) {
           throw new Error(`API error: ${response.statusText}`)
@@ -75,15 +88,22 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
         const result = await response.json()
 
         if (result.success && result.data && result.data.length > 0) {
-          setData(parseData(result.data))
+          // Store the full dataset
+          const parsedData = parseData(result.data)
+          setFullDataset(parsedData)
+          // Initially filtered data will be set in the other useEffect
         } else {
           // Fallback to default data if no results
-          setData(parseData(defaultYieldCurveDataRaw))
+          const parsedDefaultData = parseData(defaultYieldCurveDataRaw)
+          setFullDataset(parsedDefaultData)
+          setData(parsedDefaultData)
           setError('Could not retrieve data from FRED API. Using default data.')
         }
       } catch (err: any) {
         console.error('Error fetching treasury yield data:', err)
-        setData(parseData(defaultYieldCurveDataRaw))
+        const parsedDefaultData = parseData(defaultYieldCurveDataRaw)
+        setFullDataset(parsedDefaultData)
+        setData(parsedDefaultData)
         setError(err.message || 'Failed to fetch data')
       } finally {
         setLoading(false)
@@ -91,13 +111,193 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
     }
 
     fetchData()
-  }, [startDate, endDate])
+  }, []) // Only fetch once when component mounts
+  
+  // Filter data client-side based on provided date range
+  useEffect(() => {
+    if (fullDataset.length === 0) return
+    
+    let filteredData = [...fullDataset]
+    
+    // Apply date filters if provided
+    if (startDate || endDate) {
+      const numericStartDate = startDate ? new Date(startDate).getTime() : null
+      const numericEndDate = endDate ? new Date(endDate).getTime() : null
+      
+      filteredData = filteredData.filter(point => {
+        if (numericStartDate && point.date < numericStartDate) return false
+        if (numericEndDate && point.date > numericEndDate) return false
+        return true
+      })
+    }
+    
+    // If no data after filtering (or empty array), use full dataset but show warning
+    if (filteredData.length === 0) {
+      filteredData = [...fullDataset]
+      setError('No data available for the selected date range. Showing full dataset.')
+    } else {
+      // Clear any previous errors if we have data
+      if (error === 'No data available for the selected date range. Showing full dataset.') {
+        setError(null)
+      }
+    }
+    
+    setData(filteredData)
+  }, [fullDataset, startDate, endDate, error]) // Re-filter when date range or full dataset changes
 
   // Use the most recent data points or fallback to defaults
   const currentSpread = data.length > 0 ? data[data.length - 1].spread : 0
-  const previousSpread = data.length > 1 ? data[data.length - 2].spread : 0
+  const previousSpread = data.length > 1 ? data[data.length - 2].spread : currentSpread
   const isInverted = currentSpread < 0
   const isWorsening = currentSpread < previousSpread
+
+  // Calculate avg days to recession using full dataset (separate from visible transition points)
+  useEffect(() => {
+    if (fullDataset.length < 2) return;
+
+    // Find all transition points in the full dataset (negative to positive only)
+    const fullDatasetTransitions: {date: number}[] = [];
+    
+    for (let i = 1; i < fullDataset.length; i++) {
+      // Only include points where previous was negative and current is positive
+      if (fullDataset[i-1].spread < 0 && fullDataset[i].spread >= 0) {
+        fullDatasetTransitions.push({
+          date: fullDataset[i].date
+        });
+      }
+    }
+    
+    // For each recession, find the closest preceding transition point
+    const transitionToRecessionDays: number[] = [];
+    
+    for (const recession of historicalRecessionPeriods) {
+      let closestPoint = null;
+      let smallestTimeDiff = Infinity;
+      
+      // Find the transition point closest to but before this recession start
+      for (const point of fullDatasetTransitions) {
+        const timeDiff = recession.startDate - point.date;
+        if (timeDiff > 0 && timeDiff < smallestTimeDiff) {
+          smallestTimeDiff = timeDiff;
+          closestPoint = point;
+        }
+      }
+      
+      if (closestPoint) {
+        console.log(new Date(closestPoint.date));
+        // Calculate days to recession
+        const daysToRecession = Math.floor((recession.startDate - closestPoint.date) / (1000 * 60 * 60 * 24));
+        transitionToRecessionDays.push(daysToRecession);
+      }
+    }
+    
+    // Calculate average days to recession using full historical data
+    if (transitionToRecessionDays.length > 0) {
+      const totalDays = transitionToRecessionDays.reduce((sum, days) => sum + days, 0);
+      setAverageDaysToRecession(Math.round(totalDays / transitionToRecessionDays.length));
+    } else {
+      setAverageDaysToRecession(null);
+    }
+  }, [fullDataset]); // Only recalculate when the full dataset changes
+  
+  // Calculate transition points for display in the current view
+  useEffect(() => {
+    if (data.length < 2) return
+
+    // First find all transition points (negative to positive) in the current view
+    const allTransitionPoints: {index: number, date: number}[] = [];
+    
+    for (let i = 1; i < data.length; i++) {
+      // Only include points where previous was negative and current is positive
+      if (data[i-1].spread < 0 && data[i].spread >= 0) {
+        allTransitionPoints.push({
+          index: i,
+          date: data[i].date
+        });
+      }
+    }
+    
+    // Array to hold transition points with recession information for display
+    const enhancedTransitions: EnhancedTransitionPoint[] = [];
+    
+    // For each recession, find the closest preceding transition point
+    for (const recession of historicalRecessionPeriods) {
+      let closestPoint = null;
+      let smallestTimeDiff = Infinity;
+      
+      // Find the transition point closest to but before this recession start
+      for (const point of allTransitionPoints) {
+        const timeDiff = recession.startDate - point.date;
+        if (timeDiff > 0 && timeDiff < smallestTimeDiff) {
+          smallestTimeDiff = timeDiff;
+          closestPoint = point;
+        }
+      }
+      
+      if (closestPoint) {
+        // Calculate days to recession
+        const daysToRecession = Math.floor((recession.startDate - closestPoint.date) / (1000 * 60 * 60 * 24));
+        
+        // Add to our enhanced transition points with recession info
+        enhancedTransitions.push({
+          ...closestPoint,
+          daysToRecession,
+          recessionName: recession.name
+        });
+      }
+    }
+    
+    // Only add the most recent transition point if we're not currently in a recession
+    if (allTransitionPoints.length > 0) {
+      const now = new Date().getTime();
+      
+      // Check if we're in a recession now
+      const inRecession = historicalRecessionPeriods.some(recession => 
+        now >= recession.startDate && now <= recession.endDate
+      );
+      
+      if (!inRecession) {
+        // For the most recent point we don't have recession info yet
+        const lastPoint = allTransitionPoints[allTransitionPoints.length - 1];
+        enhancedTransitions.push({
+          ...lastPoint
+        });
+      }
+    }
+    
+    // Remove any duplicates by index
+    const uniqueTransitions = enhancedTransitions.filter(
+      (point, index, self) => index === self.findIndex((p) => p.index === point.index)
+    );
+    
+    // Use the already-calculated average days to recession from the full dataset
+    // We don't recalculate it here, as we want to use the complete history
+    
+    // Find the most recent transition and calculate days since
+    if (uniqueTransitions.length > 0) {
+      // Sort by date in descending order
+      const sortedByDate = [...uniqueTransitions].sort((a, b) => b.date - a.date);
+      const mostRecentTransition = sortedByDate[0];
+      
+      // Calculate days since most recent transition
+      const today = new Date().getTime();
+      const daysSince = Math.round((today - mostRecentTransition.date) / (1000 * 60 * 60 * 24));
+      setDaysSinceLastTransition(daysSince);
+      
+      // Calculate recession risk percentage based on how close we are to average days
+      if (averageDaysToRecession) {
+        // As we approach the average days to recession, risk increases
+        // Risk is 100% when we reach or exceed the average days
+        const riskPercent = Math.min(100, Math.round((daysSince / averageDaysToRecession) * 100));
+        setRecessionRiskPercent(riskPercent);
+      }
+    } else {
+      setDaysSinceLastTransition(null);
+      setRecessionRiskPercent(null);
+    }
+    
+    setTransitionPoints(uniqueTransitions);
+  }, [data])
 
   // Convert string dates from props to numeric timestamps for the domain
   const numericStartDate = startDate ? new Date(startDate).getTime() : undefined;
@@ -108,16 +308,18 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2">
           <h2 className="text-xl font-semibold">Treasury Yield Curve Spread</h2>
-          <div
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-white font-medium ${
-              currentSpread < 0 ? "bg-red-600" : "bg-green-600"
-            }`}
-          >
-            <span className="text-lg">{currentSpread.toFixed(2)}%</span>
-            {isWorsening ? <TrendingDown className="h-4 w-4 ml-1" /> : <TrendingUp className="h-4 w-4 ml-1" />}
+          <div className="flex items-center gap-2">
+            <div
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-white font-medium ${
+                daysSinceLastTransition !== null && daysSinceLastTransition > 0 ? "bg-red-600" : "bg-green-600"
+              }`}
+            >
+              <span className="text-lg">{(daysSinceLastTransition ?? 0).toFixed(2)} days</span>
+              {daysSinceLastTransition !== null && daysSinceLastTransition > 0 ? <TrendingUp className="h-4 w-4 ml-1" /> : <TrendingDown className="h-4 w-4 ml-1" />}
+            </div>
           </div>
         </div>
-        <Badge variant={isInverted ? "destructive" : "outline"}>{isInverted ? "Inverted" : "Normal"}</Badge>
+        <Badge variant={daysSinceLastTransition !== null && daysSinceLastTransition > 0 ? "destructive" : "outline"}>{daysSinceLastTransition !== null && daysSinceLastTransition > 0 ? "High Risk" : "Low Risk"}</Badge>
       </div>
       <p className="text-sm text-muted-foreground mb-4">The difference between 10-year and 2-year Treasury yields</p>
 
@@ -132,16 +334,16 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
               {error}
             </div>
           )}
-          <ChartContainer
-            config={{
-              spread: {
-                label: "Spread (%)",
-                color: currentSpread < 0 ? "hsl(var(--chart-2))" : "hsl(var(--chart-1))",
-              },
-            }}
-            className="h-[200px]"
-          >
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-[400px]">
+            <ChartContainer
+              config={{
+                spread: {
+                  label: "Spread (%)",
+                  color: currentSpread < 0 ? "hsl(var(--chart-2))" : "hsl(var(--chart-1))",
+                },
+              }}
+              className="h-full w-full"
+            >
               <ComposedChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorSpread" x1="0" y1="0" x2="0" y2="1">
@@ -162,7 +364,7 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
                 id="0"
                 dataKey="date"
                 type="number"
-                domain={numericStartDate && numericEndDate ? [numericStartDate, numericEndDate] : ['dataMin', 'dataMax']}
+                domain={['dataMin', 'dataMax']} // Always use the min/max of filtered data
                 tickLine={false}
                 axisLine={false}
                 allowDataOverflow={true} // Ensure reference areas slightly outside data points can be shown
@@ -172,7 +374,7 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
                   return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`
                 }}
               />
-              <YAxis tickLine={false} axisLine={false} tickFormatter={(value) => `${value.toFixed(2)}%`} />
+              <YAxis id="0" tickLine={false} axisLine={false} tickFormatter={(value) => `${value.toFixed(2)}%`} />
               <ChartTooltip
                 content={
                   <ChartTooltipContent
@@ -201,24 +403,45 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
                 fill="url(#colorSpread)"
                 connectNulls={true}
               />
+              
+              {/* Add circular markers at transition points with tooltips */}
+              {transitionPoints
+                .filter(point => 
+                  // Safety check: only include points with valid indices in the current dataset
+                  point.index >= 0 && 
+                  point.index < data.length && 
+                  data[point.index] !== undefined
+                )
+                .map((point, idx) => (
+                  <ReferenceDot
+                    key={`transition-${idx}`}
+                    x={data[point.index].date}
+                    y={data[point.index].spread}
+                    r={6}
+                    fill="hsl(var(--primary))"
+                    stroke="white"
+                    strokeWidth={2}
+                    ifOverflow="extendDomain"
+                  />
+                ))}
+             
             </ComposedChart>
-        </ResponsiveContainer>
         </ChartContainer>
+        </div>
       </div>
       )}
 
       <div className="mt-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Info className="h-4 w-4 text-muted-foreground" />
+        {averageDaysToRecession && (
+          <div className="flex align-start gap-2 mb-2">
+            <Info className="h-8 w-8 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
-            An inverted yield curve (negative spread) has historically preceded recessions.
+            Historically, when the yield curve transitions from negative to positive, 
+            a recession has followed in an average of {averageDaysToRecession} days (approximately {Math.round(averageDaysToRecession/30)} months).
+            The circular markers on the chart indicate these transition points.
           </p>
-        </div>
-        <p className="text-sm text-muted-foreground mt-1">
-          {isInverted
-            ? "The yield curve is currently inverted, which has been a reliable recession indicator historically. The inversion has been in place for several weeks, suggesting increased recession risk."
-            : "The yield curve remains positive, suggesting lower recession risk in the near term."}
-        </p>
+          </div>
+        )}
       </div>
     </section>
   )

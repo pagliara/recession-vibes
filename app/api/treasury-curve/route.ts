@@ -6,12 +6,16 @@ const FRED_API_KEY = process.env.FRED_API_KEY;
 // Treasury Yield Curve Spread (10Y-2Y) Series ID
 const T10Y2Y_SERIES_ID = 'T10Y2Y';
 
+// Default start date (1976-06-01 - earliest available data for T10Y2Y)
+const DEFAULT_START_DATE = '1976-06-01';
+
 /**
- * Fetches the Treasury Yield Curve Spread (10Y-2Y) data from FRED
+ * Fetches all available Treasury Yield Curve Spread (10Y-2Y) data from FRED
  * 
- * @param startDate - Start date in YYYY-MM-DD format
- * @param endDate - End date in YYYY-MM-DD format
- * @returns Treasury yield curve spread data
+ * Note: This endpoint always returns all available data to enable client-side filtering
+ * and static generation. The startDate and endDate parameters in the request are ignored.
+ * 
+ * @returns Complete treasury yield curve spread dataset
  */
 export async function GET(request: Request) {
   // Check if API key is provided
@@ -22,15 +26,11 @@ export async function GET(request: Request) {
     );
   }
 
-  const { searchParams } = new URL(request.url);
+  // Use today's date as end date
+  const endDate = new Date().toISOString().split('T')[0];
   
-  // Get date parameters, default to last 6 months if not provided
-  const endDate = searchParams.get('endDate') || new Date().toISOString().split('T')[0];
-  
-  // Calculate default start date (6 months ago)
-  const defaultStartDate = new Date();
-  defaultStartDate.setMonth(defaultStartDate.getMonth() - 6);
-  const startDate = searchParams.get('startDate') || defaultStartDate.toISOString().split('T')[0];
+  // Use earliest available data for start date
+  const startDate = DEFAULT_START_DATE;
   
   try {
     // Construct the FRED API URL
@@ -67,6 +67,7 @@ export async function GET(request: Request) {
       meta: {
         startDate,
         endDate,
+        fetchedFullDataset: true,
         series: T10Y2Y_SERIES_ID,
         source: 'FRED',
         description: 'Treasury Yield Curve Spread (10-Year Treasury Constant Maturity Minus 2-Year Treasury Constant Maturity)'

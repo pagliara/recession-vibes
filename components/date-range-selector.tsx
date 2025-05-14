@@ -67,7 +67,7 @@ export function DateRangeSelector({ onDateRangeChange, startDate, endDate }: Dat
         setRange(subYears(today, 10))
         break
       case "max":
-        setRange(new Date(1990, 0, 1))
+        setRange(new Date(1976, 5, 1)) // June 1, 1976 - earliest available data for Treasury Yield Curve
         break
       default:
         setRange(subMonths(today, 3))
