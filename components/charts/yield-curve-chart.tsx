@@ -214,7 +214,7 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
   const isInverted = currentSpread < 0
   const isWorsening = currentSpread < previousSpread
 
-  // Calculate avg days to recession using full dataset (separate from visible transition points)
+  // Calculate avg days to recession and days since last transition using full dataset
   useEffect(() => {
     // Get the appropriate dataset based on selected spread type
     const currentDataset = spreadType === 'T10Y2Y' ? fullDataset.t10y2y : fullDataset.t10y3m;
@@ -251,7 +251,6 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
       }
       
       if (closestPoint) {
-        console.log(new Date(closestPoint.date));
         // Calculate days to recession
         const daysToRecession = Math.floor((recession.startDate - closestPoint.date) / (1000 * 60 * 60 * 24));
         transitionToRecessionDays.push(daysToRecession);
@@ -265,7 +264,30 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
     } else {
       setAverageDaysToRecession(null);
     }
-  }, [fullDataset, spreadType]); // Recalculate when the full dataset or spread type changes
+    
+    // Calculate days since most recent transition using full dataset
+    if (fullDatasetTransitions.length > 0) {
+      // Sort by date in descending order to find the most recent transition
+      const sortedByDate = [...fullDatasetTransitions].sort((a, b) => b.date - a.date);
+      const mostRecentTransition = sortedByDate[0];
+      
+      // Calculate days since most recent transition
+      const today = new Date().getTime();
+      const daysSince = Math.round((today - mostRecentTransition.date) / (1000 * 60 * 60 * 24));
+      setDaysSinceLastTransition(daysSince);
+      
+      // Calculate recession risk percentage based on how close we are to average days
+      if (averageDaysToRecession) {
+        // As we approach the average days to recession, risk increases
+        // Risk is 100% when we reach or exceed the average days
+        const riskPercent = Math.min(100, Math.round((daysSince / averageDaysToRecession) * 100));
+        setRecessionRiskPercent(riskPercent);
+      }
+    } else {
+      setDaysSinceLastTransition(null);
+      setRecessionRiskPercent(null);
+    }
+  }, [fullDataset, spreadType, averageDaysToRecession]); // Recalculate when the full dataset or spread type changes
   
   // Calculate transition points for display in the current view
   useEffect(() => {
@@ -339,29 +361,6 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
     
     // Use the already-calculated average days to recession from the full dataset
     // We don't recalculate it here, as we want to use the complete history
-    
-    // Find the most recent transition and calculate days since
-    if (uniqueTransitions.length > 0) {
-      // Sort by date in descending order
-      const sortedByDate = [...uniqueTransitions].sort((a, b) => b.date - a.date);
-      const mostRecentTransition = sortedByDate[0];
-      
-      // Calculate days since most recent transition
-      const today = new Date().getTime();
-      const daysSince = Math.round((today - mostRecentTransition.date) / (1000 * 60 * 60 * 24));
-      setDaysSinceLastTransition(daysSince);
-      
-      // Calculate recession risk percentage based on how close we are to average days
-      if (averageDaysToRecession) {
-        // As we approach the average days to recession, risk increases
-        // Risk is 100% when we reach or exceed the average days
-        const riskPercent = Math.min(100, Math.round((daysSince / averageDaysToRecession) * 100));
-        setRecessionRiskPercent(riskPercent);
-      }
-    } else {
-      setDaysSinceLastTransition(null);
-      setRecessionRiskPercent(null);
-    }
     
     setTransitionPoints(uniqueTransitions);
   }, [data])

@@ -43,7 +43,7 @@ export default function RecessionDashboard() {
       </div>
 
       {/* Sticky date range selector */}
-      <div className="sticky top-0 bg-background py-2 z-50 border-b mb-6">
+      <div className="sticky top-0 py-2 z-50">
         <DateRangeSelector 
           onDateRangeChange={handleDateRangeChange}
           startDate={dateRange.startDate}
