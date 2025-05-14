@@ -34,7 +34,7 @@ export default function RecessionDashboard() {
   return (
     <div className="container mx-auto py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Recession Indicators Dashboard</h1>
+        <h2 className="text-2xl font-semibold tracking-tight">Economic Indicators Dashboard</h2>
         <p className="text-muted-foreground mt-2">
           Weekly tracking of key economic indicators that signal recession risk
         </p>

@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { Header } from '@/components/layout/header'
 
 export const metadata: Metadata = {
-  title: 'Recession Indicators Dashboard',
+  title: 'Recession Vibes | Economic Indicators Dashboard',
   description: 'Weekly tracking of key economic indicators that signal recession risk',
   generator: 'v0.dev',
 }
@@ -14,7 +15,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className="min-h-screen bg-background font-sans antialiased">
+        <Header />
+        <main>
+          {children}
+        </main>
+      </body>
     </html>
   )
 }
