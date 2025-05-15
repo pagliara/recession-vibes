@@ -7,10 +7,16 @@ import { Info, Loader2 } from "lucide-react"
 import { historicalRecessionPeriods } from "@/components/charts/overlays/recession/recession-periods"
 import { renderRecessionReferenceAreas } from "@/components/charts/overlays/recession/recession-overlay"
 import { ChartHeader } from "@/components/ui/chart-header"
-// Define the data structure for the consumer sentiment data
+// Define the data structures for our chart data
 type ConsumerSentimentDataPoint = {
   date: number // timestamp
   value: number // sentiment index value
+}
+
+// Separate type for moving average data points
+type MADataPoint = {
+  date: number // timestamp
+  maValue: number // moving average value
 }
 
 // Default consumer sentiment data (fallback if API fails)
@@ -118,27 +124,112 @@ export function ConsumerSentimentChart({ startDate, endDate }: ConsumerSentiment
     setData(filteredData);
   }, [fullDataset, startDate, endDate, loading, error]);
 
-  // Calculate risk levels based on historical data
-  const getHistoricalLow = () => {
-    if (fullDataset.length === 0) return 60; // Default low threshold
-    return Math.min(...fullDataset.map(d => d.value)) + 5; // 5 points above absolute low
+  // Calculate 200-day moving average for each data point and overall stats
+  const calculate200DayMA = () => {
+    if (fullDataset.length === 0) {
+      return { average: 0, high: 0, low: 0, maLine: [] };
+    }
+
+    // Sort by date (ascending) to ensure chronological order
+    const sortedData = [...fullDataset].sort((a, b) => a.date - b.date);
+    
+    // Period for moving average (200 days in ms)
+    const maPeriod = 200 * 24 * 60 * 60 * 1000;
+    
+    // Calculate MA for each point by looking back 200 days
+    const maLine: MADataPoint[] = [];
+    let overallHigh = -Infinity;
+    let overallLow = Infinity;
+    let sumValues = 0;
+    let countValues = 0;
+    
+    // For each data point, calculate its 200-day MA
+    sortedData.forEach((point, index) => {
+      // Find all points within 200 days before this point
+      const window = sortedData.filter(
+        p => p.date <= point.date && p.date >= (point.date - maPeriod)
+      );
+      
+      if (window.length > 0) {
+        const values = window.map(p => p.value);
+        const ma = values.reduce((sum, v) => sum + v, 0) / values.length;
+        
+        // Add to MA line with a dedicated type for MA points
+        maLine.push({
+          date: point.date,
+          maValue: ma
+        });
+        
+        // Update overall stats
+        overallHigh = Math.max(overallHigh, ma);
+        overallLow = Math.min(overallLow, ma);
+        sumValues += ma;
+        countValues++;
+      }
+    });
+    
+    // Calculate overall average of the MA line
+    const average = countValues > 0 ? sumValues / countValues : 0;
+    
+    return { 
+      average, 
+      high: overallHigh, 
+      low: overallLow, 
+      maLine 
+    };
   };
 
-  const getHistoricalMedium = () => {
-    if (fullDataset.length === 0) return 75; // Default medium threshold
-    const values = fullDataset.map(d => d.value);
-    return values.reduce((a, b) => a + b, 0) / values.length; // Average
-  };
-
-  // Use the most recent data point or fallback to default
+  // Get the 200-day moving average stats and line data
+  const { average: ma200, high: ma200High, low: ma200Low, maLine } = calculate200DayMA();
+  
+  // Filter maLine to match the date range displayed on the chart
+  const filteredMALine = maLine.filter(point => {
+    if (!data.length) return true;
+    const minDate = Math.min(...data.map(d => d.date));
+    const maxDate = Math.max(...data.map(d => d.date));
+    return point.date >= minDate && point.date <= maxDate;
+  }) as MADataPoint[];
+  
+  // Calculate the range of the 200-day MA
+  const ma200Range = ma200High - ma200Low;
+  
+  // Use the most recent data points or fallback to defaults
   const currentSentiment = data.length > 0 ? data[data.length - 1].value : 65;
   const previousSentiment = data.length > 1 ? data[data.length - 2].value : currentSentiment;
-  const isDecreasing = currentSentiment < previousSentiment;
   
-  // Dynamic risk levels based on historical data
-  const lowThreshold = getHistoricalLow();
-  const mediumThreshold = getHistoricalMedium();
-  const riskLevel = currentSentiment < lowThreshold ? "high" : currentSentiment < mediumThreshold ? "medium" : "low";
+  // Determine if trend is up or down based on most recent points
+  const isTrendUp = currentSentiment > previousSentiment;
+  
+  // Calculate current position within the 200-day range (as a percentage)
+  let rangePosition = 0;
+  if (ma200Range > 0) {
+    // Normalize current position within range (0 = at low, 1 = at high)
+    rangePosition = (currentSentiment - ma200Low) / ma200Range;
+  }
+  
+  // Determine risk level based on position within range and trend
+  let riskLevel: "high" | "medium" | "low";
+  
+  if (rangePosition < 0.3) {
+    // Near or below the low of the 200-day range - higher risk
+    riskLevel = "high";
+  } else if (rangePosition < 0.5) {
+    // In bottom half of the range
+    riskLevel = isTrendUp ? "medium" : "high";
+  } else if (rangePosition < 0.7) {
+    // In top half of the range
+    riskLevel = isTrendUp ? "low" : "medium";
+  } else {
+    // Near or above the high of the 200-day range
+    riskLevel = "low";
+  }
+  
+  // Fallback if we don't have sufficient data
+  if (fullDataset.length < 3) {
+    const lowThreshold = 60; // Default fallback
+    const mediumThreshold = 75;
+    riskLevel = currentSentiment < lowThreshold ? "high" : currentSentiment < mediumThreshold ? "medium" : "low";
+  }
 
   return (
     <section className="pb-6 border-b">
@@ -167,7 +258,7 @@ export function ConsumerSentimentChart({ startDate, endDate }: ConsumerSentiment
             }}
             className="h-[300px]"
           >
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer>
               <ComposedChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis 
@@ -207,12 +298,27 @@ export function ConsumerSentimentChart({ startDate, endDate }: ConsumerSentiment
                   }
                 />
                 
-                {renderRecessionReferenceAreas()} {/* Use the same recession overlay as yield curve */}
+                {/* Add the 200-day moving average dotted line */}
+                <Line
+                  data={filteredMALine}
+                  type="monotone"
+                  dataKey="maValue" // Using a different dataKey to avoid conflicts
+                  name="200-day MA"
+                  stroke="hsl(var(--foreground))"
+                  strokeWidth={1.5}
+                  strokeDasharray="5 5"
+                  dot={false}
+                  activeDot={false}
+                  connectNulls={true}
+                  isAnimationActive={false}
+                />
                 
+                {/* Main sentiment line with dots */}
                 <Line
                   type="monotone"
                   dataKey="value"
-                  stroke={riskLevel === "high" ? "hsl(var(--chart-2))" : "hsl(var(--chart-1))"}
+                  name="Consumer Sentiment"
+                  stroke={riskLevel === "high" ? "rgb(220, 38, 38)" : riskLevel === "medium" ? "rgb(202, 138, 4)" : "rgb(22, 163, 74)"}
                   strokeWidth={2}
                   // Use the dot property to control density
                   dot={(props) => {
@@ -223,20 +329,22 @@ export function ConsumerSentimentChart({ startDate, endDate }: ConsumerSentiment
                     if (index % pointDensity === 0 || index === 0 || index === (data.length - 1)) {
                       return (
                         <circle 
+                          key={`dot-${index}`}
                           cx={cx} 
                           cy={cy} 
                           r={3} 
-                          fill={riskLevel === "high" ? "hsl(var(--chart-2))" : "hsl(var(--chart-1))"} 
+                          fill={riskLevel === "high" ? "rgb(220, 38, 38)" : riskLevel === "medium" ? "rgb(202, 138, 4)" : "rgb(22, 163, 74)"} 
                           className="recharts-dot"
                         />
                       );
                     }
                     // For points we don't want to show, render an invisible dot
-                    return <circle cx={cx} cy={cy} r={0} fill="transparent" />;
+                    return <circle key={`dot-${index}`} cx={cx} cy={cy} r={0} fill="transparent" />;
                   }}
                   activeDot={{ r: 5, strokeWidth: 1 }}
                   connectNulls={true}
                 />
+                {renderRecessionReferenceAreas()} {/* Use the same recession overlay as yield curve */}
               </ComposedChart>
             </ResponsiveContainer>
           </ChartContainer>

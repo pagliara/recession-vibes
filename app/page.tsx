@@ -2,11 +2,8 @@
 
 import { useState } from "react"
 import { YieldCurveChart } from "@/components/charts/yield-curve-chart"
-import { UnemploymentChart } from "@/components/charts/unemployment-chart"
-import { GdpGrowthChart } from "@/components/charts/gdp-growth-chart"
 import { ConsumerSentimentChart } from "@/components/charts/consumer-sentiment-chart"
-import { LeadingIndicatorsChart } from "@/components/charts/leading-indicators-chart"
-import { HousingStartsChart } from "@/components/charts/housing-starts-chart"
+import { HousingPermitsChart } from "@/components/charts/housing-permits-chart"
 import { RecessionProbabilityGauge } from "@/components/recession-probability-gauge"
 import { LatestBlogPost } from "@/components/latest-blog-post"
 import { DateRangeSelector } from "@/components/date-range-selector"
@@ -53,11 +50,8 @@ export default function RecessionDashboard() {
 
       <div className="grid grid-cols-1 gap-8">
         <YieldCurveChart startDate={dateRange.startDate} endDate={dateRange.endDate} />
-        <UnemploymentChart />
-        <GdpGrowthChart />
         <ConsumerSentimentChart startDate={dateRange.startDate} endDate={dateRange.endDate} />
-        <LeadingIndicatorsChart />
-        <HousingStartsChart />
+        <HousingPermitsChart startDate={dateRange.startDate} endDate={dateRange.endDate} />
       </div>
     </div>
   )

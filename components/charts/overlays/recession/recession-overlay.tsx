@@ -29,7 +29,7 @@ export function renderRecessionReferenceAreas(): React.ReactNode[] {
           fill="#DC3545"
           fontSize={11}
           fontWeight="bold"
-          offset={labelOffset} // Use dynamic offset
+          offset={labelOffset}
         />
       </ReferenceArea>
     )
