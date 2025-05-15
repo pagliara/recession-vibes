@@ -13,8 +13,8 @@ export const dynamic = "force-static";
 // CDN cache currently only works on nodejs runtime
 export const runtime = "nodejs";
 
-// Revalidate in seconds
-export const revalidate = 60 * 60 * 24;
+// Revalidate in seconds (1 day = 86400 seconds)
+export const revalidate = 86400;
 
 export default function BlogIndexPage() {
   // Sort posts by date (newest first)
