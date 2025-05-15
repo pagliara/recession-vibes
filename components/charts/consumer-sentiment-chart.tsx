@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Area, CartesianGrid, ComposedChart, ReferenceArea, ResponsiveContainer, XAxis, YAxis, Label } from "recharts"
+import { Line, CartesianGrid, ComposedChart, ReferenceArea, ResponsiveContainer, XAxis, YAxis, Label } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Info, Loader2 } from "lucide-react"
 import { historicalRecessionPeriods } from "@/components/charts/overlays/recession/recession-periods"
@@ -168,21 +168,7 @@ export function ConsumerSentimentChart({ startDate, endDate }: ConsumerSentiment
             className="h-[300px]"
           >
             <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={data} margin={{ top: 10, right: 10, left: 5, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorSentiment" x1="0" y1="0" x2="0" y2="1">
-                    <stop
-                      offset="5%"
-                      stopColor={riskLevel === "high" ? "hsl(var(--chart-2))" : "hsl(var(--chart-1))"}
-                      stopOpacity={0.8}
-                    />
-                    <stop
-                      offset="95%"
-                      stopColor={riskLevel === "high" ? "hsl(var(--chart-2))" : "hsl(var(--chart-1))"}
-                      stopOpacity={0.2}
-                    />
-                  </linearGradient>
-                </defs>
+              <ComposedChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis 
                   dataKey="date" 
@@ -191,6 +177,7 @@ export function ConsumerSentimentChart({ startDate, endDate }: ConsumerSentiment
                   tickLine={false} 
                   axisLine={false}
                   allowDataOverflow={true}
+                  padding={{ left: 10, right: 10 }}
                   tickFormatter={(value) => {
                     const date = new Date(value);
                     return `${date.getMonth() + 1}/${date.getFullYear().toString().substr(2, 2)}`;
@@ -199,7 +186,8 @@ export function ConsumerSentimentChart({ startDate, endDate }: ConsumerSentiment
                 <YAxis 
                   tickLine={false} 
                   axisLine={false} 
-                  domain={['dataMin - 5', 'dataMax + 5']} 
+                  domain={['auto', 'auto']} 
+                  padding={{ top: 10, bottom: 10 }}
                 />
                 <ChartTooltip
                   content={
@@ -221,13 +209,32 @@ export function ConsumerSentimentChart({ startDate, endDate }: ConsumerSentiment
                 
                 {renderRecessionReferenceAreas()} {/* Use the same recession overlay as yield curve */}
                 
-                <Area
+                <Line
                   type="monotone"
                   dataKey="value"
-                  stroke={riskLevel === "high" ? "var(--color-spread)" : "var(--color-spread)"}
-                  strokeWidth={3}
-                  fillOpacity={1}
-                  fill="url(#colorSentiment)"
+                  stroke={riskLevel === "high" ? "hsl(var(--chart-2))" : "hsl(var(--chart-1))"}
+                  strokeWidth={2}
+                  // Use the dot property to control density
+                  dot={(props) => {
+                    // Only render dots at specific intervals (adjust pointDensity to control density)
+                    const pointDensity = 3;
+                    const { cx, cy, index, payload } = props;
+                    // Always show first and last points, plus every Nth point
+                    if (index % pointDensity === 0 || index === 0 || index === (data.length - 1)) {
+                      return (
+                        <circle 
+                          cx={cx} 
+                          cy={cy} 
+                          r={3} 
+                          fill={riskLevel === "high" ? "hsl(var(--chart-2))" : "hsl(var(--chart-1))"} 
+                          className="recharts-dot"
+                        />
+                      );
+                    }
+                    // For points we don't want to show, render an invisible dot
+                    return <circle cx={cx} cy={cy} r={0} fill="transparent" />;
+                  }}
+                  activeDot={{ r: 5, strokeWidth: 1 }}
                   connectNulls={true}
                 />
               </ComposedChart>

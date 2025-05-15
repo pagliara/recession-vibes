@@ -32,7 +32,7 @@ export default function RecessionDashboard() {
   const recessionProbability = calculateRecessionProbability()
 
   return (
-    <div className="container mx-auto py-4">
+    <div className="container mx-auto px-4 sm:px-8 py-4">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 mb-2">
         <div>
           <RecessionProbabilityGauge probability={recessionProbability} />
