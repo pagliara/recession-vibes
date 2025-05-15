@@ -1,109 +1,258 @@
 "use client"
 
-import { Line, CartesianGrid, ComposedChart, ReferenceArea, ResponsiveContainer, XAxis, YAxis } from "recharts"
-import { Badge } from "@/components/ui/badge"
+import { useEffect, useState } from "react"
+import { Area, CartesianGrid, ComposedChart, ReferenceArea, ResponsiveContainer, XAxis, YAxis, Label } from "recharts"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { Info, TrendingDown, TrendingUp } from "lucide-react"
-import { RecessionOverlay } from "@/components/charts/overlays/recession/recession-overlay"
+import { Info, Loader2 } from "lucide-react"
+import { historicalRecessionPeriods } from "@/components/charts/overlays/recession/recession-periods"
+import { renderRecessionReferenceAreas } from "@/components/charts/overlays/recession/recession-overlay"
+import { ChartHeader } from "@/components/ui/chart-header"
+// Define the data structure for the consumer sentiment data
+type ConsumerSentimentDataPoint = {
+  date: number // timestamp
+  value: number // sentiment index value
+}
 
-// Mock weekly consumer sentiment data with ISO date format
-const sentimentData = [
-  { date: "2023-01-01", week: "Jan 1", sentiment: 75 },
-  { date: "2023-01-08", week: "Jan 8", sentiment: 74 },
-  { date: "2023-01-15", week: "Jan 15", sentiment: 73 },
-  { date: "2023-01-22", week: "Jan 22", sentiment: 72 },
-  { date: "2023-01-29", week: "Jan 29", sentiment: 71 },
-  { date: "2023-02-05", week: "Feb 5", sentiment: 70 },
-  { date: "2023-02-12", week: "Feb 12", sentiment: 69 },
-  { date: "2023-02-19", week: "Feb 19", sentiment: 68 },
-  { date: "2023-02-26", week: "Feb 26", sentiment: 67 },
-  { date: "2023-03-05", week: "Mar 5", sentiment: 66 },
-  { date: "2023-03-12", week: "Mar 12", sentiment: 65 },
-  { date: "2023-03-19", week: "Mar 19", sentiment: 64 },
-  { date: "2023-03-26", week: "Mar 26", sentiment: 63 },
-  { date: "2023-04-02", week: "Apr 2", sentiment: 62 },
-  { date: "2023-04-09", week: "Apr 9", sentiment: 61 },
-  { date: "2023-04-16", week: "Apr 16", sentiment: 60 },
-  { date: "2023-04-23", week: "Apr 23", sentiment: 59 },
-  { date: "2023-04-30", week: "Apr 30", sentiment: 58 },
-  { date: "2023-05-07", week: "May 7", sentiment: 57 },
-  { date: "2023-05-14", week: "May 14", sentiment: 56 },
+// Default consumer sentiment data (fallback if API fails)
+const defaultConsumerSentimentData = [
+  { date: "2023-01-01", value: 64.9 },
+  { date: "2023-02-01", value: 67.0 },
+  { date: "2023-03-01", value: 62.0 },
+  { date: "2023-04-01", value: 63.5 },
+  { date: "2023-05-01", value: 59.2 },
+  { date: "2023-06-01", value: 64.4 },
+  { date: "2023-07-01", value: 71.6 },
+  { date: "2023-08-01", value: 69.5 },
+  { date: "2023-09-01", value: 68.1 },
+  { date: "2023-10-01", value: 63.8 },
+  { date: "2023-11-01", value: 61.3 },
+  { date: "2023-12-01", value: 69.7 },
+  { date: "2024-01-01", value: 79.0 },
+  { date: "2024-02-01", value: 76.9 },
+  { date: "2024-03-01", value: 79.4 },
+  { date: "2024-04-01", value: 77.2 },
 ]
 
-export function ConsumerSentimentChart() {
-  const currentSentiment = sentimentData[sentimentData.length - 1].sentiment
-  const previousSentiment = sentimentData[sentimentData.length - 2].sentiment
-  const isDecreasing = currentSentiment < previousSentiment
-  const riskLevel = currentSentiment < 60 ? "high" : currentSentiment < 70 ? "medium" : "low"
+interface ConsumerSentimentChartProps {
+  startDate?: string
+  endDate?: string
+}
+
+export function ConsumerSentimentChart({ startDate, endDate }: ConsumerSentimentChartProps) {
+  // State for filtered data (what's displayed in the chart)
+  const [data, setData] = useState<ConsumerSentimentDataPoint[]>([])
+  // State for the complete dataset
+  const [fullDataset, setFullDataset] = useState<ConsumerSentimentDataPoint[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Helper function to convert date strings to timestamps
+  const parseData = (rawData: { date: string; value: number }[]) => {
+    return rawData.map(item => ({
+      date: new Date(item.date).getTime(),
+      value: item.value
+    }));
+  };
+
+  // Fetch consumer sentiment data from the API
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/consumer-sentiment');
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to fetch consumer sentiment data');
+      }
+      
+      // Parse the data to convert string dates to timestamps
+      const parsedData = parseData(result.data);
+      
+      // Store the full dataset
+      setFullDataset(parsedData);
+      setLoading(false);
+    } catch (err: any) {
+      console.error('Error fetching consumer sentiment data:', err);
+      setError(err.message);
+      
+      // Load default data as fallback
+      setFullDataset(parseData(defaultConsumerSentimentData));
+      setLoading(false);
+    }
+  };
+
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Filter data based on date range
+  useEffect(() => {
+    if (loading || fullDataset.length === 0) return;
+    
+    let filteredData = [...fullDataset];
+    
+    // Filter by start date if provided
+    if (startDate) {
+      const startTimestamp = new Date(startDate).getTime();
+      filteredData = filteredData.filter(item => item.date >= startTimestamp);
+    }
+    
+    // Filter by end date if provided
+    if (endDate) {
+      const endTimestamp = new Date(endDate).getTime();
+      filteredData = filteredData.filter(item => item.date <= endTimestamp);
+    }
+    
+    // If no data after filtering (or empty array), use full dataset but show warning
+    if (filteredData.length === 0) {
+      filteredData = [...fullDataset];
+      setError('No data available for the selected date range. Showing full dataset.');
+    } else {
+      // Clear any previous errors if we have data
+      if (error === 'No data available for the selected date range. Showing full dataset.') {
+        setError(null);
+      }
+    }
+    
+    setData(filteredData);
+  }, [fullDataset, startDate, endDate, loading, error]);
+
+  // Calculate risk levels based on historical data
+  const getHistoricalLow = () => {
+    if (fullDataset.length === 0) return 60; // Default low threshold
+    return Math.min(...fullDataset.map(d => d.value)) + 5; // 5 points above absolute low
+  };
+
+  const getHistoricalMedium = () => {
+    if (fullDataset.length === 0) return 75; // Default medium threshold
+    const values = fullDataset.map(d => d.value);
+    return values.reduce((a, b) => a + b, 0) / values.length; // Average
+  };
+
+  // Use the most recent data point or fallback to default
+  const currentSentiment = data.length > 0 ? data[data.length - 1].value : 65;
+  const previousSentiment = data.length > 1 ? data[data.length - 2].value : currentSentiment;
+  const isDecreasing = currentSentiment < previousSentiment;
+  
+  // Dynamic risk levels based on historical data
+  const lowThreshold = getHistoricalLow();
+  const mediumThreshold = getHistoricalMedium();
+  const riskLevel = currentSentiment < lowThreshold ? "high" : currentSentiment < mediumThreshold ? "medium" : "low";
 
   return (
     <section className="pb-6 border-b">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-          <h2 className="text-xl font-semibold">Consumer Sentiment Index</h2>
-          <div
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-white font-medium ${
-              currentSentiment < 65 ? "bg-red-600" : "bg-green-600"
-            }`}
-          >
-            <span className="text-lg">{currentSentiment}</span>
-            {isDecreasing ? <TrendingDown className="h-4 w-4 ml-1" /> : <TrendingUp className="h-4 w-4 ml-1" />}
-          </div>
-        </div>
-        <Badge variant={riskLevel === "high" ? "destructive" : riskLevel === "medium" ? "default" : "outline"}>
-          {riskLevel === "high" ? "High Risk" : riskLevel === "medium" ? "Medium Risk" : "Low Risk"}
-        </Badge>
-      </div>
-      <p className="text-sm text-muted-foreground mb-4">Weekly consumer sentiment readings (index value)</p>
+      <ChartHeader
+        title="Consumer Sentiment Index"
+        description="University of Michigan Consumer Sentiment Index"
+        value={currentSentiment}
+        previousValue={previousSentiment}
+        riskLevel={riskLevel}
+        loading={loading}
+        error={error}
+      />
 
-      <div className="mb-4">
-        <ChartContainer
-          config={{
-            sentiment: {
-              label: "Sentiment",
-              color: currentSentiment < 65 ? "hsl(var(--chart-2))" : "hsl(var(--chart-1))",
-            },
-          }}
-          className="h-[200px]"
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={sentimentData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="date" tickLine={false} axisLine={false} tickFormatter={(value) => {
-                const date = new Date(value);
-                return `${date.getMonth() + 1}/${date.getDate()}`;
-              }} />
-              <YAxis tickLine={false} axisLine={false} domain={[50, 80]} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              {/* Recession periods */}
-              <ReferenceArea x1={2} x2={7} fill="rgba(220, 53, 69, 0.2)" fillOpacity={0.8} strokeOpacity={0.8} stroke="#dc3545" label={{value: "Mock Recession 1", position: "insideTop", fill: "#dc3545"}} />
-              <ReferenceArea x1={13} x2={16} fill="rgba(220, 53, 69, 0.2)" fillOpacity={0.8} strokeOpacity={0.8} stroke="#dc3545" label={{value: "Mock Recession 2", position: "insideTop", fill: "#dc3545"}} />
-              <Line
-                type="monotone"
-                dataKey="sentiment"
-                stroke={currentSentiment < 65 ? "hsl(var(--chart-2))" : "hsl(var(--chart-1))"}
-                strokeWidth={3}
-                dot={true}
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </ChartContainer>
-      </div>
+      {loading ? (
+        <div className="flex items-center justify-center h-[200px]">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <div className="mb-4">
+          <ChartContainer
+            config={{
+              value: {
+                label: "Consumer Sentiment",
+                color: riskLevel === "high" ? "hsl(var(--chart-2))" : "hsl(var(--chart-1))",
+              },
+            }}
+            className="h-[300px]"
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={data} margin={{ top: 10, right: 10, left: 5, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorSentiment" x1="0" y1="0" x2="0" y2="1">
+                    <stop
+                      offset="5%"
+                      stopColor={riskLevel === "high" ? "hsl(var(--chart-2))" : "hsl(var(--chart-1))"}
+                      stopOpacity={0.8}
+                    />
+                    <stop
+                      offset="95%"
+                      stopColor={riskLevel === "high" ? "hsl(var(--chart-2))" : "hsl(var(--chart-1))"}
+                      stopOpacity={0.2}
+                    />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis 
+                  dataKey="date" 
+                  type="number"
+                  domain={['dataMin', 'dataMax']} 
+                  tickLine={false} 
+                  axisLine={false}
+                  allowDataOverflow={true}
+                  tickFormatter={(value) => {
+                    const date = new Date(value);
+                    return `${date.getMonth() + 1}/${date.getFullYear().toString().substr(2, 2)}`;
+                  }}
+                />
+                <YAxis 
+                  tickLine={false} 
+                  axisLine={false} 
+                  domain={['dataMin - 5', 'dataMax + 5']} 
+                />
+                <ChartTooltip
+                  content={
+                    <ChartTooltipContent
+                      labelFormatter={(timestamp) => {
+                        if (typeof timestamp === 'number') {
+                          const date = new Date(timestamp);
+                          return date.toLocaleDateString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          });
+                        }
+                        return String(timestamp);
+                      }}
+                    />
+                  }
+                />
+                
+                {renderRecessionReferenceAreas()} {/* Use the same recession overlay as yield curve */}
+                
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke={riskLevel === "high" ? "var(--color-spread)" : "var(--color-spread)"}
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#colorSentiment)"
+                  connectNulls={true}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        </div>
+      )}
 
       <div className="mt-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Info className="h-4 w-4 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
-            Consumer sentiment often falls sharply before and during recessions.
-          </p>
+        <div className="flex items-start gap-2 mb-2">
+          <Info className="h-5 w-5 mt-0.5 text-muted-foreground" />
+          <div>
+            <p className="text-sm text-muted-foreground">
+              The Consumer Sentiment Index tracks how consumers feel about their personal finances,
+              business conditions, and buying conditions.
+            </p>
+            <p className="text-sm text-muted-foreground mt-1">
+              {riskLevel === "high"
+                ? "Consumer sentiment has fallen to levels typically seen during economic downturns. This suggests consumers are pessimistic about future economic conditions."
+                : riskLevel === "medium"
+                  ? "Sentiment is moderating but remains above levels typically associated with recessions. The trend bears watching."
+                  : "Consumer sentiment remains relatively strong, suggesting continued consumer spending and economic growth."}
+            </p>
+          </div>
         </div>
-        <p className="text-sm text-muted-foreground mt-1">
-          {riskLevel === "high"
-            ? "Consumer sentiment has fallen to levels typically seen during economic downturns. This suggests consumers are pessimistic about future economic conditions."
-            : riskLevel === "medium"
-              ? "Sentiment is weakening but remains above levels typically associated with recessions. The trend bears watching."
-              : "Consumer sentiment remains relatively strong, suggesting continued consumer spending and economic growth."}
-        </p>
       </div>
     </section>
   )

@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react"
 import { Area, CartesianGrid, ComposedChart, ReferenceArea, ResponsiveContainer, ReferenceDot, XAxis, YAxis, Label } from "recharts"
-import { Badge } from "@/components/ui/badge"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { Info, Loader2, TrendingDown, TrendingUp } from "lucide-react"
+import { Info, Loader2 } from "lucide-react"
 import { historicalRecessionPeriods } from "@/components/charts/overlays/recession/recession-periods"; 
 import { renderRecessionReferenceAreas } from "@/components/charts/overlays/recession/recession-overlay"; 
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label as UILabel } from "@/components/ui/label"
+import { ChartHeader } from "@/components/ui/chart-header"
 
 // Define the data structure for the yield curve data
 type YieldCurveDataPoint = {
@@ -371,48 +371,36 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
 
   return (
     <section className="pb-6 border-b">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
-        <section className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-lg pr-2">
-              Treasury Yield Curve Spread
-            </h2>
-            <div className="flex items-center gap-2">
-              <div
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-white font-medium ${
-                  daysSinceLastTransition !== null && daysSinceLastTransition > 0 ? "bg-red-600" : "bg-green-600"
-                }`}
-              >
-                <span className="text-lg">{(daysSinceLastTransition ?? 0)} days</span>
-                {daysSinceLastTransition !== null && daysSinceLastTransition > 0 ? <TrendingUp className="h-4 w-4 ml-1" /> : <TrendingDown className="h-4 w-4 ml-1" />}
-              </div>
-            </div>
-          </div>
-          <div className="mb-4">
-            <RadioGroup
-              value={spreadType}
-              onValueChange={(value) => setSpreadType(value as SpreadType)}
-              className="flex space-x-4"
-              defaultValue="T10Y2Y"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="T10Y2Y" id="t10y2y" />
-                <UILabel htmlFor="t10y2y">10Y-2Y</UILabel>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="T10Y3M" id="t10y3m" />
-                <UILabel htmlFor="t10y3m">10Y-3M</UILabel>
-              </div>
-            </RadioGroup>
-          </div>
-        </section>
-        <Badge variant={daysSinceLastTransition !== null && daysSinceLastTransition > 0 ? "destructive" : "outline"}>{daysSinceLastTransition !== null && daysSinceLastTransition > 0 ? "High Risk" : "Low Risk"}</Badge>
-      </div>
-      <p className="text-sm text-muted-foreground mb-4">
-        {spreadType === 'T10Y2Y' 
+      <ChartHeader
+        title="Treasury Yield Curve Spread"
+        description={spreadType === 'T10Y2Y' 
           ? "The difference between 10-year and 2-year Treasury yields" 
           : "The difference between 10-year and 3-month Treasury yields"}
-      </p>
+        value={daysSinceLastTransition ?? 0}
+        riskLevel={daysSinceLastTransition !== null && daysSinceLastTransition > 0 ? 'high' : 'low'}
+        loading={loading}
+        error={error}
+        valueSuffix=" days"
+        valueDecimals={0}
+      >
+        <div className="mt-2">
+          <RadioGroup
+            value={spreadType}
+            onValueChange={(value) => setSpreadType(value as SpreadType)}
+            className="flex space-x-4"
+            defaultValue="T10Y2Y"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="T10Y2Y" id="t10y2y" />
+              <UILabel htmlFor="t10y2y">10Y-2Y</UILabel>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="T10Y3M" id="t10y3m" />
+              <UILabel htmlFor="t10y3m">10Y-3M</UILabel>
+            </div>
+          </RadioGroup>
+        </div>
+      </ChartHeader>
 
       {loading ? (
         <div className="flex items-center justify-center h-[200px] bg-muted/20 rounded-md">

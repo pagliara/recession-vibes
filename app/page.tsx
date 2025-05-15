@@ -55,7 +55,7 @@ export default function RecessionDashboard() {
         <YieldCurveChart startDate={dateRange.startDate} endDate={dateRange.endDate} />
         <UnemploymentChart />
         <GdpGrowthChart />
-        <ConsumerSentimentChart />
+        <ConsumerSentimentChart startDate={dateRange.startDate} endDate={dateRange.endDate} />
         <LeadingIndicatorsChart />
         <HousingStartsChart />
       </div>
