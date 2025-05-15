@@ -233,14 +233,16 @@ export function ConsumerSentimentChart({ startDate, endDate }: ConsumerSentiment
 
   return (
     <section className="pb-6 border-b">
-      <ChartHeader
-        title="Consumer Sentiment Index"
-        description="University of Michigan Consumer Sentiment Index"
-        value={currentSentiment}
+      <ChartHeader 
+        title="Consumer Sentiment Index" 
+        description="University of Michigan Consumer Sentiment Index" 
+        value={currentSentiment} 
         previousValue={previousSentiment}
-        riskLevel={riskLevel}
-        loading={loading}
-        error={error}
+        riskLevel={riskLevel} 
+        loading={loading} 
+        error={error} 
+        valueDecimals={1}
+        citations={[3, 5]}
       />
 
       {loading ? (

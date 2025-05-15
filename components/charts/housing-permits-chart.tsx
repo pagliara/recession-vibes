@@ -239,6 +239,7 @@ export function HousingPermitsChart({ startDate, endDate }: HousingPermitsChartP
         value={currentVsMA.current || 0}
         previousValue={currentVsMA.previous || 0}
         riskLevel={riskLevel}
+        citations={[4, 5]}
       />
       
       {loading ? (

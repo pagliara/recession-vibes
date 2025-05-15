@@ -8,6 +8,7 @@ import { RecessionProbabilityGauge } from "@/components/recession-probability-ga
 import { LatestBlogPost } from "@/components/latest-blog-post"
 import { DateRangeSelector } from "@/components/date-range-selector"
 import { calculateRecessionProbability } from "@/lib/calculate-recession-probability"
+import { Footer } from "@/components/layout/footer"
 
 export default function RecessionDashboard() {
   // State for date range
@@ -53,6 +54,8 @@ export default function RecessionDashboard() {
         <ConsumerSentimentChart startDate={dateRange.startDate} endDate={dateRange.endDate} />
         <HousingPermitsChart startDate={dateRange.startDate} endDate={dateRange.endDate} />
       </div>
+
+      <Footer />
     </div>
   )
 }

@@ -382,6 +382,7 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
         error={error}
         valueSuffix=" days"
         valueDecimals={0}
+        citations={[1, 2, 5]}
       >
         <div className="mt-2">
           <RadioGroup

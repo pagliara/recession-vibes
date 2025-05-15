@@ -3,6 +3,7 @@
 import { Badge } from "@/components/ui/badge"
 import { ChartValueChip, RiskLevel } from "@/components/ui/chart-value-chip"
 import { ReactNode } from "react"
+import { CitationLink } from "@/components/layout/footer"
 
 export interface ChartHeaderProps {
   /**
@@ -56,6 +57,11 @@ export interface ChartHeaderProps {
   customValueColor?: string
   
   /**
+   * Array of citation IDs to display as links
+   */
+  citations?: number[]
+  
+  /**
    * Optional additional content to display in the header
    */
   children?: ReactNode
@@ -75,13 +81,27 @@ export function ChartHeader({
   valueSuffix = '',
   valueDecimals = 1,
   customValueColor,
+  citations = [],
   children
 }: ChartHeaderProps) {
   return (
     <>
       <div className="flex flex-row items-start justify-between gap-2 mb-2">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-          <h2 className="text-xl font-semibold">{title}</h2>
+          <div className="flex items-center gap-1">
+            <h2 className="text-xl font-semibold">{title}</h2>
+            {citations.length > 0 && (
+              <span className="inline-flex gap-1 items-center">
+                {citations.map((id, index) => (
+                  <span key={id} className="text-xs font-semibold align-super -mt-3">
+                    <a href={`#citation-${id}`} className="text-muted-foreground hover:text-primary">
+                    {id}{index < citations.length - 1 ? "," : ""}
+                    </a>
+                  </span>
+                ))}
+              </span>
+            )}
+          </div>
           <ChartValueChip
             value={value}
             previousValue={previousValue}
@@ -99,6 +119,8 @@ export function ChartHeader({
       <p className="text-sm text-muted-foreground mb-4">
         {description} {error && <span className="text-red-500">({error})</span>}
       </p>
+      
+      
       {children}
     </>
   )
