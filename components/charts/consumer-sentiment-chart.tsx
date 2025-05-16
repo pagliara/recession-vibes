@@ -239,7 +239,7 @@ export function ConsumerSentimentChart({ startDate, endDate, data: chartData }: 
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <div className="mb-4">
+        <div className="mb-4 h-[350px]">
           <ChartContainer
             config={{
               value: {
@@ -247,9 +247,8 @@ export function ConsumerSentimentChart({ startDate, endDate, data: chartData }: 
                 color: riskLevel === "high" ? "hsl(var(--chart-2))" : "hsl(var(--chart-1))",
               },
             }}
-            className="h-[300px]"
+            className="h-full"
           >
-            <ResponsiveContainer>
               <ComposedChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis 
@@ -336,8 +335,7 @@ export function ConsumerSentimentChart({ startDate, endDate, data: chartData }: 
                   connectNulls={true}
                 />
                 {renderRecessionReferenceAreas()} {/* Use the same recession overlay as yield curve */}
-              </ComposedChart>
-            </ResponsiveContainer>
+              </ComposedChart>  
           </ChartContainer>
         </div>
       )}
