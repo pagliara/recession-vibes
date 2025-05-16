@@ -42,9 +42,10 @@ const defaultConsumerSentimentData = [
 interface ConsumerSentimentChartProps {
   startDate?: string
   endDate?: string
+  data: { date: string; value: number }[]
 }
 
-export function ConsumerSentimentChart({ startDate, endDate }: ConsumerSentimentChartProps) {
+export function ConsumerSentimentChart({ startDate, endDate, data: chartData }: ConsumerSentimentChartProps) {
   // State for filtered data (what's displayed in the chart)
   const [data, setData] = useState<ConsumerSentimentDataPoint[]>([])
   // State for the complete dataset
@@ -60,37 +61,25 @@ export function ConsumerSentimentChart({ startDate, endDate }: ConsumerSentiment
     }));
   };
 
-  // Fetch consumer sentiment data from the API
-  const fetchData = async () => {
+  // No longer needed as data is passed via props
+
+  // Process data when component mounts or data changes
+  useEffect(() => {
     setLoading(true);
     try {
-      const response = await fetch('/api/consumer-sentiment');
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch consumer sentiment data');
-      }
-      
       // Parse the data to convert string dates to timestamps
-      const parsedData = parseData(result.data);
+      const parsedData = parseData(chartData);
       
       // Store the full dataset
       setFullDataset(parsedData);
-      setLoading(false);
+      setError(null);
     } catch (err: any) {
-      console.error('Error fetching consumer sentiment data:', err);
+      console.error('Error processing consumer sentiment data:', err);
       setError(err.message);
-      
-      // Load default data as fallback
-      setFullDataset(parseData(defaultConsumerSentimentData));
+    } finally {
       setLoading(false);
     }
-  };
-
-  // Fetch data on component mount
-  useEffect(() => {
-    fetchData();
-  }, []);
+  }, [chartData]);
 
   // Filter data based on date range
   useEffect(() => {

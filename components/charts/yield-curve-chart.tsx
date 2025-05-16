@@ -46,35 +46,15 @@ export const defaultYieldCurveDataRaw = [
 interface YieldCurveChartProps {
   startDate?: string
   endDate?: string
+  data: {
+    t10y2y: { date: string; spread: number }[]
+    t10y3m: { date: string; spread: number }[]
+  }
 }
 
-// Default yield curve data for T10Y3M (fallback if API fails)
-export const defaultYieldCurveT10Y3MDataRaw = [
-  { date: "2023-01-01", spread: 0.45 },
-  { date: "2023-01-08", spread: 0.42 },
-  { date: "2023-01-15", spread: 0.38 },
-  { date: "2023-01-22", spread: 0.35 },
-  { date: "2023-01-29", spread: 0.31 },
-  { date: "2023-02-05", spread: 0.28 },
-  { date: "2023-02-12", spread: 0.25 },
-  { date: "2023-02-19", spread: 0.20 },
-  { date: "2023-02-26", spread: 0.15 },
-  { date: "2023-03-05", spread: 0.10 },
-  { date: "2023-03-12", spread: 0.05 },
-  { date: "2023-03-19", spread: 0.00 },
-  { date: "2023-03-26", spread: -0.05 },
-  { date: "2023-04-02", spread: -0.10 },
-  { date: "2023-04-09", spread: -0.15 },
-  { date: "2023-04-16", spread: -0.20 },
-  { date: "2023-04-23", spread: -0.25 },
-  { date: "2023-04-30", spread: -0.30 },
-  { date: "2023-05-07", spread: -0.28 },
-  { date: "2023-05-14", spread: -0.25 },
-]
-
-export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
+export function YieldCurveChart({ startDate, endDate, data: chartData }: YieldCurveChartProps) {
   // State for filtered data (what's displayed in the chart)
-  const [data, setData] = useState<YieldCurveDataPoint[]>([])
+  const [filteredData, setFilteredData] = useState<YieldCurveDataPoint[]>([])
   // State for the complete dataset (used for historical analysis)
   const [fullDataset, setFullDataset] = useState<{
     t10y2y: YieldCurveDataPoint[],
@@ -113,104 +93,69 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
     return spreadType === 'T10Y2Y' ? fullDataset.t10y2y : fullDataset.t10y3m;
   };
 
-  // Fetch all available data from the API just once
+  // Process the provided data on component mount and when it changes
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true)
+    setLoading(true)
+    try {
+      // Parse the data provided via props
+      const parsedT10Y2YData = parseData(chartData.t10y2y)
+      const parsedT10Y3MData = parseData(chartData.t10y3m)
+      
+      setFullDataset({
+        t10y2y: parsedT10Y2YData,
+        t10y3m: parsedT10Y3MData
+      })
       setError(null)
-      try {
-        // No query params - we want all data
-        const response = await fetch('/api/treasury-curve')
-
-        if (!response.ok) {
-          throw new Error(`API error: ${response.statusText}`)
-        }
-
-        const result = await response.json()
-
-        if (result.success && result.data) {
-          // Store both datasets
-          const parsedT10Y2YData = parseData(result.data.t10y2y)
-          const parsedT10Y3MData = parseData(result.data.t10y3m)
-          
-          setFullDataset({
-            t10y2y: parsedT10Y2YData,
-            t10y3m: parsedT10Y3MData
-          })
-          // Initially filtered data will be set in the other useEffect
-        } else {
-          // Fallback to default data if no results
-          const parsedDefaultT10Y2YData = parseData(defaultYieldCurveDataRaw)
-          const parsedDefaultT10Y3MData = parseData(defaultYieldCurveT10Y3MDataRaw)
-          
-          setFullDataset({
-            t10y2y: parsedDefaultT10Y2YData,
-            t10y3m: parsedDefaultT10Y3MData
-          })
-          
-          // Set initial data based on selected spread type
-          setData(spreadType === 'T10Y2Y' ? parsedDefaultT10Y2YData : parsedDefaultT10Y3MData)
-        } 
-      } catch (err: any) {
-        console.error('Error fetching treasury yield data:', err)
-        const parsedDefaultT10Y2YData = parseData(defaultYieldCurveDataRaw)
-        const parsedDefaultT10Y3MData = parseData(defaultYieldCurveT10Y3MDataRaw)
-        
-        setFullDataset({
-          t10y2y: parsedDefaultT10Y2YData,
-          t10y3m: parsedDefaultT10Y3MData
-        })
-        
-        setData(spreadType === 'T10Y2Y' ? parsedDefaultT10Y2YData : parsedDefaultT10Y3MData)
-        setError(`Error fetching data: ${err.message}`)
-      } finally {
-        setLoading(false)
-      }
+    } catch (err: any) {
+      console.error('Error processing treasury yield data:', err)
+      setError(`Error processing data: ${err.message}`)
+    } finally {
+      setLoading(false)
     }
+  }, [chartData]) // Re-process when chartData changes
 
-    fetchData()
-  }, []) // Only fetch once when component mounts
-  
   // Filter data by date range and handle transition points calculation
   useEffect(() => {
     // Skip if no data or still loading
-    if ((fullDataset.t10y2y.length === 0 && fullDataset.t10y3m.length === 0) || loading) {
-      return;
+    if (loading || Object.keys(fullDataset).length === 0) return;
+    
+    const currentDataset = getCurrentDataset();
+    
+    let newFilteredData = [...currentDataset];
+    
+    // Filter by start date if provided
+    if (startDate) {
+      const startTimestamp = new Date(startDate).getTime();
+      newFilteredData = newFilteredData.filter(item => item.date >= startTimestamp);
     }
     
-    // Get the current dataset based on selected spread type
-    const currentFullDataset = getCurrentDataset();
-    let filteredData = [...currentFullDataset]
+    // Filter by end date if provided
+    if (endDate) {
+      const endTimestamp = new Date(endDate).getTime();
+      newFilteredData = newFilteredData.filter(item => item.date <= endTimestamp);
+    }
     
-    // Apply date filters if provided
-    if (startDate || endDate) {
-      const numericStartDate = startDate ? new Date(startDate).getTime() : null
-      const numericEndDate = endDate ? new Date(endDate).getTime() : null
+    // If no data after filtering, use full dataset (this is unlikely unless date range is invalid)
+    if (newFilteredData.length === 0 && currentDataset.length > 0) {
+      console.warn('No data points in selected date range, using full dataset');
+      newFilteredData = [...currentDataset];
       
-      filteredData = filteredData.filter(point => {
-        if (numericStartDate && point.date < numericStartDate) return false
-        if (numericEndDate && point.date > numericEndDate) return false
-        return true
-      })
-    }
-    
-    // If no data after filtering (or empty array), use full dataset but show warning
-    if (filteredData.length === 0) {
-      filteredData = [...currentFullDataset];
-      setError('No data available for the selected date range. Showing full dataset.')
-    } else {
-      // Clear any previous errors if we have data
-      if (error === 'No data available for the selected date range. Showing full dataset.') {
-        setError(null)
+      // If showing the full dataset, set default dates to match
+      if (newFilteredData.length > 0) {
+        const firstDate = new Date(newFilteredData[0].date).toISOString().split('T')[0];
+        const lastDate = new Date(newFilteredData[newFilteredData.length - 1].date).toISOString().split('T')[0];
+        // This would ideally update the parent's state, but would need to be handled via prop callbacks
+        // Instead, we just log a warning
+        console.info(`Available data range: ${firstDate} to ${lastDate}`);
       }
     }
     
-    setData(filteredData)
+    setFilteredData(newFilteredData)
   }, [fullDataset, startDate, endDate, loading, spreadType]) // Re-filter when date range or full dataset changes
 
   // Use the most recent data points or fallback to defaults
-  const currentSpread = data.length > 0 ? data[data.length - 1].spread : 0
-  const previousSpread = data.length > 1 ? data[data.length - 2].spread : currentSpread
+  const currentSpread = filteredData.length > 0 ? filteredData[filteredData.length - 1].spread : 0
+  const previousSpread = filteredData.length > 1 ? filteredData[filteredData.length - 2].spread : currentSpread
   const isInverted = currentSpread < 0
   const isWorsening = currentSpread < previousSpread
 
@@ -291,17 +236,18 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
   
   // Calculate transition points for display in the current view
   useEffect(() => {
-    if (data.length < 2) return
+    if (filteredData.length < 2) return
 
     // First find all transition points (negative to positive) in the current view
     const allTransitionPoints: {index: number, date: number}[] = [];
     
-    for (let i = 1; i < data.length; i++) {
+    // Loop through data to find transitions
+    for (let i = 1; i < filteredData.length; i++) {
       // Only include points where previous was negative and current is positive
-      if (data[i-1].spread < 0 && data[i].spread >= 0) {
+      if (filteredData[i-1].spread < 0 && filteredData[i].spread >= 0) {
         allTransitionPoints.push({
           index: i,
-          date: data[i].date
+          date: filteredData[i].date
         });
       }
     }
@@ -363,7 +309,7 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
     // We don't recalculate it here, as we want to use the complete history
     
     setTransitionPoints(uniqueTransitions);
-  }, [data])
+  }, [filteredData])
 
   // Convert string dates from props to numeric timestamps for the domain
   const numericStartDate = startDate ? new Date(startDate).getTime() : undefined;
@@ -424,7 +370,7 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
               }}
               className="h-full w-full"
             >
-              <ComposedChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <ComposedChart data={filteredData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorSpread" x1="0" y1="0" x2="0" y2="1">
                   <stop
@@ -489,14 +435,14 @@ export function YieldCurveChart({ startDate, endDate }: YieldCurveChartProps) {
                 .filter(point => 
                   // Safety check: only include points with valid indices in the current dataset
                   point.index >= 0 && 
-                  point.index < data.length && 
-                  data[point.index] !== undefined
+                  point.index < filteredData.length && 
+                  filteredData[point.index] !== undefined
                 )
                 .map((point, idx) => (
                   <ReferenceDot
                     key={`transition-${idx}`}
-                    x={data[point.index].date}
-                    y={data[point.index].spread}
+                    x={filteredData[point.index].date}
+                    y={filteredData[point.index].spread}
                     r={6}
                     fill="hsl(var(--primary))"
                     stroke="white"

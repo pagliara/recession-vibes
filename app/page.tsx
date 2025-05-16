@@ -1,61 +1,21 @@
-"use client"
+import RecessionDashboard from "@/components/recession-dashboard";
+import { fetchYieldCurveData, fetchConsumerSentimentData, fetchHousingPermitsData } from "@/lib/data-fetching"
 
-import { useState } from "react"
-import { YieldCurveChart } from "@/components/charts/yield-curve-chart"
-import { ConsumerSentimentChart } from "@/components/charts/consumer-sentiment-chart"
-import { HousingPermitsChart } from "@/components/charts/housing-permits-chart"
-import { RecessionProbabilityGauge } from "@/components/recession-probability-gauge"
-import { LatestBlogPost } from "@/components/latest-blog-post"
-import { DateRangeSelector } from "@/components/date-range-selector"
-import { calculateRecessionProbability } from "@/lib/calculate-recession-probability"
-import { Footer } from "@/components/layout/footer"
-
-export default function RecessionDashboard() {
-  // State for date range
-  const [dateRange, setDateRange] = useState({
-    startDate: (() => {
-      const date = new Date();
-      date.setFullYear(date.getFullYear() - 5); // Set to 5 years ago
-      return date.toISOString().split('T')[0];
-    })(),
-    endDate: new Date().toISOString().split('T')[0],
-  })
-
-  // Handle date range changes
-  const handleDateRangeChange = (range: { startDate: string; endDate: string }) => {
-    setDateRange(range)
-  }
+// Page is a server component by default
+export default async function DashboardPage() {
+  // Fetch all chart data in parallel
+  const [yieldCurveData, consumerSentimentData, housingPermitsData] = await Promise.all([
+    fetchYieldCurveData(),
+    fetchConsumerSentimentData(),
+    fetchHousingPermitsData()
+  ]);
   
-  // Calculate the recession probability
-  const recessionProbability = calculateRecessionProbability()
-
+  // Pass all data to the client RecessionDashboard component
   return (
-    <div className="container mx-auto px-4 sm:px-8 py-4">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 mb-2">
-        <div>
-          <RecessionProbabilityGauge probability={recessionProbability} />
-        </div>
-        <div>
-          <LatestBlogPost />
-        </div>
-      </div>
-
-      {/* Sticky date range selector */}
-      <div className="sticky top-0 py-2 z-50">
-        <DateRangeSelector 
-          onDateRangeChange={handleDateRangeChange}
-          startDate={dateRange.startDate}
-          endDate={dateRange.endDate}
-        />
-      </div>
-
-      <div className="grid grid-cols-1 gap-8">
-        <YieldCurveChart startDate={dateRange.startDate} endDate={dateRange.endDate} />
-        <ConsumerSentimentChart startDate={dateRange.startDate} endDate={dateRange.endDate} />
-        <HousingPermitsChart startDate={dateRange.startDate} endDate={dateRange.endDate} />
-      </div>
-
-      <Footer />
-    </div>
+    <RecessionDashboard 
+      yieldCurveData={yieldCurveData}
+      consumerSentimentData={consumerSentimentData} 
+      housingPermitsData={housingPermitsData}
+    />
   )
 }

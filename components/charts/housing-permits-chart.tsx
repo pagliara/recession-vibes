@@ -42,9 +42,10 @@ const defaultHousingPermitsData = [
 interface HousingPermitsChartProps {
   startDate?: string
   endDate?: string
+  data: { date: string; value: number }[]
 }
 
-export function HousingPermitsChart({ startDate, endDate }: HousingPermitsChartProps) {
+export function HousingPermitsChart({ startDate, endDate, data: chartData }: HousingPermitsChartProps) {
   // State for filtered data (what's displayed in the chart)
   const [data, setData] = useState<HousingPermitsDataPoint[]>([])
   // State for the complete dataset
@@ -79,43 +80,25 @@ export function HousingPermitsChart({ startDate, endDate }: HousingPermitsChartP
     }));
   };
 
-  // Fetch housing permits data from the API
-  const fetchData = async () => {
+  // No longer needed as data is passed via props
+
+  // Process data when component mounts or data changes
+  useEffect(() => {
     setLoading(true);
     try {
-      const response = await fetch('/api/housing-permits');
-      if (!response.ok) {
-        throw new Error(`API request failed with status ${response.status}: ${response.statusText}`);
-      }
-      
-      const result = await response.json();
-      console.log('Housing Permits API response:', result);
-      
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to fetch housing permits data');
-      }
-      
       // Parse the data to convert string dates to timestamps
-      const parsedData = parseData(result.data);
+      const parsedData = parseData(chartData);
       
       // Store the full dataset
       setFullDataset(parsedData);
-      setLoading(false);
+      setError(null);
     } catch (err: any) {
-      console.error('Error fetching housing permits data:', err);
-      setError(`${err.message}. Using fallback data.`);
-      
-      // Load default data as fallback
-      console.log('Loading default housing permits data as fallback');
-      setFullDataset(parseData(defaultHousingPermitsData));
+      console.error('Error processing housing permits data:', err);
+      setError(err.message);
+    } finally {
       setLoading(false);
     }
-  };
-
-  // Fetch data on component mount
-  useEffect(() => {
-    fetchData();
-  }, []);
+  }, [chartData]);
 
   // Filter data based on date range
   useEffect(() => {
