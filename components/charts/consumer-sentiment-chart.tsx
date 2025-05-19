@@ -7,16 +7,12 @@ import { Info, Loader2 } from "lucide-react"
 import { historicalRecessionPeriods } from "@/components/charts/overlays/recession/recession-periods"
 import { renderRecessionReferenceAreas } from "@/components/charts/overlays/recession/recession-overlay"
 import { ChartHeader } from "@/components/ui/chart-header"
+import { useMovingAverage, MADataPoint } from "@/hooks/use-moving-average"
+
 // Define the data structures for our chart data
 type ConsumerSentimentDataPoint = {
   date: number // timestamp
   value: number // sentiment index value
-}
-
-// Separate type for moving average data points
-type MADataPoint = {
-  date: number // timestamp
-  maValue: number // moving average value
 }
 
 // Default consumer sentiment data (fallback if API fails)
@@ -113,63 +109,12 @@ export function ConsumerSentimentChart({ startDate, endDate, data: chartData }: 
     setData(filteredData);
   }, [fullDataset, startDate, endDate, loading, error]);
 
-  // Calculate 200-day moving average for each data point and overall stats
-  const calculate200DayMA = () => {
-    if (fullDataset.length === 0) {
-      return { average: 0, high: 0, low: 0, maLine: [] };
-    }
-
-    // Sort by date (ascending) to ensure chronological order
-    const sortedData = [...fullDataset].sort((a, b) => a.date - b.date);
-    
-    // Period for moving average (200 days in ms)
-    const maPeriod = 200 * 24 * 60 * 60 * 1000;
-    
-    // Calculate MA for each point by looking back 200 days
-    const maLine: MADataPoint[] = [];
-    let overallHigh = -Infinity;
-    let overallLow = Infinity;
-    let sumValues = 0;
-    let countValues = 0;
-    
-    // For each data point, calculate its 200-day MA
-    sortedData.forEach((point, index) => {
-      // Find all points within 200 days before this point
-      const window = sortedData.filter(
-        p => p.date <= point.date && p.date >= (point.date - maPeriod)
-      );
-      
-      if (window.length > 0) {
-        const values = window.map(p => p.value);
-        const ma = values.reduce((sum, v) => sum + v, 0) / values.length;
-        
-        // Add to MA line with a dedicated type for MA points
-        maLine.push({
-          date: point.date,
-          maValue: ma
-        });
-        
-        // Update overall stats
-        overallHigh = Math.max(overallHigh, ma);
-        overallLow = Math.min(overallLow, ma);
-        sumValues += ma;
-        countValues++;
-      }
-    });
-    
-    // Calculate overall average of the MA line
-    const average = countValues > 0 ? sumValues / countValues : 0;
-    
-    return { 
-      average, 
-      high: overallHigh, 
-      low: overallLow, 
-      maLine 
-    };
-  };
-
-  // Get the 200-day moving average stats and line data
-  const { average: ma200, high: ma200High, low: ma200Low, maLine } = calculate200DayMA();
+  // Use our custom hook to calculate the 50-day moving average
+  const { average: ma50, high, low, maLine } = useMovingAverage(fullDataset, {
+    windowSize: 50,
+    valueKey: 'value',
+    useTimeBased: true // Use time-based window (50 days) rather than count-based
+  });
   
   // Filter maLine to match the date range displayed on the chart
   const filteredMALine = maLine.filter(point => {
@@ -179,28 +124,31 @@ export function ConsumerSentimentChart({ startDate, endDate, data: chartData }: 
     return point.date >= minDate && point.date <= maxDate;
   }) as MADataPoint[];
   
-  // Calculate the range of the 200-day MA
-  const ma200Range = ma200High - ma200Low;
+  // Calculate the range of the 50-day MA
+  const maRange = high - low;
   
   // Use the most recent data points or fallback to defaults
   const currentSentiment = data.length > 0 ? data[data.length - 1].value : 65;
   const previousSentiment = data.length > 1 ? data[data.length - 2].value : currentSentiment;
   
+  // For context, get the current 50-day MA value
+  const currentMA = filteredMALine.length > 0 ? filteredMALine[filteredMALine.length - 1].maValue : ma50;
+  
   // Determine if trend is up or down based on most recent points
   const isTrendUp = currentSentiment > previousSentiment;
   
-  // Calculate current position within the 200-day range (as a percentage)
+  // Calculate current position within the 50-day range (as a percentage)
   let rangePosition = 0;
-  if (ma200Range > 0) {
+  if (maRange > 0) {
     // Normalize current position within range (0 = at low, 1 = at high)
-    rangePosition = (currentSentiment - ma200Low) / ma200Range;
+    rangePosition = (currentSentiment - low) / maRange;
   }
   
   // Determine risk level based on position within range and trend
   let riskLevel: "high" | "medium" | "low";
   
   if (rangePosition < 0.3) {
-    // Near or below the low of the 200-day range - higher risk
+    // Near or below the low of the 50-day range - higher risk
     riskLevel = "high";
   } else if (rangePosition < 0.5) {
     // In bottom half of the range
@@ -293,7 +241,7 @@ export function ConsumerSentimentChart({ startDate, endDate, data: chartData }: 
                   data={filteredMALine}
                   type="monotone"
                   dataKey="maValue" // Using a different dataKey to avoid conflicts
-                  name="200-day MA"
+                  name="50-day MA"
                   stroke="hsl(var(--foreground))"
                   strokeWidth={1.5}
                   strokeDasharray="5 5"

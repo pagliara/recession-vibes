@@ -41,6 +41,24 @@ const citations: Citation[] = [
     source: "National Bureau of Economic Research (NBER)",
     url: "https://www.nber.org/research/business-cycle-dating",
     description: "Business Cycle Dating Committee Announcements"
+  },
+  {
+    id: 6,
+    source: "Federal Reserve Economic Data (FRED)",
+    url: "https://fred.stlouisfed.org/series/UNEMPLOY",
+    description: "Unemployment Level"
+  },
+  {
+    id: 7,
+    source: "Federal Reserve Economic Data (FRED)",
+    url: "https://fred.stlouisfed.org/series/U1RATE",
+    description: "Percentage of Labor Force Unemployed 15 Weeks or Longer"
+  },
+  {
+    id: 8,
+    source: "Federal Reserve Economic Data (FRED)",
+    url: "https://fred.stlouisfed.org/series/EMRATIO",
+    description: "Employment-Population Ratio"
   }
 ]
 

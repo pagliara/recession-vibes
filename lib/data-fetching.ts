@@ -92,6 +92,37 @@ export async function fetchHousingPermitsData() {
   }
 }
 
+// Unemployment data fetching
+export async function fetchUnemploymentData() {
+  try {
+    // For server components, we need the absolute URL
+    const url = new URL('/api/unemployment', process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000')
+    const response = await fetch(url.toString(), {
+      next: { revalidate: 86400 } // Revalidate once per day (24 hours)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API request failed with status ${response.status}: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch unemployment data');
+    }
+    
+    return result.data;
+  } catch (error: any) {
+    console.error('Error fetching unemployment data:', error);
+    // Return default data as fallback
+    return {
+      unemploy: defaultUnemployData,
+      u1rate: defaultU1RateData,
+      emratio: defaultEmRatioData
+    };
+  }
+}
+
 // Default data for fallback scenarios
 export const defaultYieldCurveDataRaw = [
   { date: "2023-01-01", spread: 0.21 },
@@ -175,4 +206,62 @@ export const defaultHousingPermitsData = [
   { date: "2024-02-01", value: 1425 },
   { date: "2024-03-01", value: 1437 },
   { date: "2024-04-01", value: 1453 },
+];
+
+// Default unemployment data for fallback scenarios
+export const defaultUnemployData = [
+  { date: "2023-01-01", value: 5892 },
+  { date: "2023-02-01", value: 5799 },
+  { date: "2023-03-01", value: 5848 },
+  { date: "2023-04-01", value: 6107 },
+  { date: "2023-05-01", value: 6091 },
+  { date: "2023-06-01", value: 6050 },
+  { date: "2023-07-01", value: 6281 },
+  { date: "2023-08-01", value: 6358 },
+  { date: "2023-09-01", value: 6077 },
+  { date: "2023-10-01", value: 6335 },
+  { date: "2023-11-01", value: 6284 },
+  { date: "2023-12-01", value: 6164 },
+  { date: "2024-01-01", value: 6119 },
+  { date: "2024-02-01", value: 5896 },
+  { date: "2024-03-01", value: 6041 },
+  { date: "2024-04-01", value: 6178 },
+];
+
+export const defaultU1RateData = [
+  { date: "2023-01-01", value: 1.2 },
+  { date: "2023-02-01", value: 1.3 },
+  { date: "2023-03-01", value: 1.3 },
+  { date: "2023-04-01", value: 1.4 },
+  { date: "2023-05-01", value: 1.4 },
+  { date: "2023-06-01", value: 1.5 },
+  { date: "2023-07-01", value: 1.5 },
+  { date: "2023-08-01", value: 1.6 },
+  { date: "2023-09-01", value: 1.5 },
+  { date: "2023-10-01", value: 1.7 },
+  { date: "2023-11-01", value: 1.7 },
+  { date: "2023-12-01", value: 1.6 },
+  { date: "2024-01-01", value: 1.6 },
+  { date: "2024-02-01", value: 1.5 },
+  { date: "2024-03-01", value: 1.5 },
+  { date: "2024-04-01", value: 1.6 },
+];
+
+export const defaultEmRatioData = [
+  { date: "2023-01-01", value: 60.2 },
+  { date: "2023-02-01", value: 60.2 },
+  { date: "2023-03-01", value: 60.3 },
+  { date: "2023-04-01", value: 60.4 },
+  { date: "2023-05-01", value: 60.3 },
+  { date: "2023-06-01", value: 60.1 },
+  { date: "2023-07-01", value: 60.0 },
+  { date: "2023-08-01", value: 60.2 },
+  { date: "2023-09-01", value: 60.4 },
+  { date: "2023-10-01", value: 60.2 },
+  { date: "2023-11-01", value: 60.0 },
+  { date: "2023-12-01", value: 60.1 },
+  { date: "2024-01-01", value: 60.2 },
+  { date: "2024-02-01", value: 60.2 },
+  { date: "2024-03-01", value: 60.3 },
+  { date: "2024-04-01", value: 60.3 },
 ];

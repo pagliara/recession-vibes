@@ -6,17 +6,12 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { Info, Loader2 } from "lucide-react"
 import { renderRecessionReferenceAreas } from "@/components/charts/overlays/recession/recession-overlay"
 import { ChartHeader } from "@/components/ui/chart-header"
+import { useMovingAverage, MADataPoint } from "@/hooks/use-moving-average"
 
 // Define the data structures for our chart data
 type HousingPermitsDataPoint = {
   date: number // timestamp
   value: number // housing permits value
-}
-
-// Separate type for moving average data points
-type MADataPoint = {
-  date: number // timestamp
-  maValue: number // moving average value
 }
 
 // Default housing permits data (fallback if API fails)
@@ -121,17 +116,19 @@ export function HousingPermitsChart({ startDate, endDate, data: chartData }: Hou
     // If no data after filtering (or empty array), use full dataset but show warning
     if (filteredData.length === 0) {
       filteredData = [...fullDataset];
-      console.warn('No data available in specified date range. Showing full dataset instead.');
+      setError('No data available for the selected date range. Showing full dataset.');
+    } else {
+      // Clear any previous errors if we have data
+      if (error === 'No data available for the selected date range. Showing full dataset.') {
+        setError(null);
+      }
     }
     
     setData(filteredData);
     
-    // Calculate 50-day moving average on the full dataset first
-    const maData = calculate50DayMA(fullDataset);
-    
-    // Then filter the MA data to match our current data range
-    const filteredMA = maData.filter(maPoint => {
-      return filteredData.some(dataPoint => dataPoint.date === maPoint.date);
+    // Filter MA data to match the date range
+    const filteredMA = movingAverageData.filter(point => {
+      return point.date >= filteredData[0].date && point.date <= filteredData[filteredData.length - 1].date;
     });
     
     setFilteredMALine(filteredMA);
@@ -139,46 +136,19 @@ export function HousingPermitsChart({ startDate, endDate, data: chartData }: Hou
     // Calculate risk levels based on the filtered data
     calculateRiskLevels(filteredData, filteredMA);
     
-  }, [fullDataset, startDate, endDate, loading]);
+  }, [fullDataset, startDate, endDate, loading, movingAverageData]);
 
-  // Calculate 50-day moving average for each data point - returns MA data points
-  const calculate50DayMA = (dataPoints: HousingPermitsDataPoint[]): MADataPoint[] => {
-    if (!dataPoints || dataPoints.length === 0) return [];
-    
-    const windowSize = 50; // 50-day moving average
-    const maData: MADataPoint[] = [];
-    
-    // Calculate MA for each point
-    for (let i = 0; i < dataPoints.length; i++) {
-      // Need at least windowSize points to calculate MA
-      if (i >= windowSize - 1) {
-        // Sum up the last windowSize values
-        let sum = 0;
-        let validPoints = 0;
-        
-        for (let j = 0; j < windowSize; j++) {
-          const value = dataPoints[i - j].value;
-          if (value !== null && !isNaN(value)) {
-            sum += value;
-            validPoints++;
-          }
-        }
-        
-        // Calculate the average if there are valid points
-        const average = validPoints > 0 ? sum / validPoints : null;
-        
-        if (average !== null) {
-          maData.push({
-            date: dataPoints[i].date,
-            maValue: average
-          });
-        }
-      }
-    }
-    
-    setMovingAverageData(maData);
-    return maData;
-  };
+  // Calculate the moving average using our custom hook
+  const { maLine, high, low, average } = useMovingAverage(fullDataset, {
+    windowSize: 50,
+    valueKey: 'value',
+    useTimeBased: false // Use count-based window (50 points) rather than time-based
+  });
+  
+  // Keep the moving average in state for use in other parts of the component
+  useEffect(() => {
+    setMovingAverageData(maLine);
+  }, [maLine]);
   
   // Calculate risk levels based on current data vs MA
   const calculateRiskLevels = (dataPoints: HousingPermitsDataPoint[], maData: MADataPoint[]) => {

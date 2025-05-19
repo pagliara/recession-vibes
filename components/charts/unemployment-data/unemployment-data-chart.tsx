@@ -1,0 +1,595 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { Line, CartesianGrid, ComposedChart, ResponsiveContainer, XAxis, YAxis, Label, Tooltip } from "recharts"
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { Info, Loader2 } from "lucide-react"
+import { renderRecessionReferenceAreas } from "@/components/charts/overlays/recession/recession-overlay"
+import { ChartHeader } from "@/components/ui/chart-header"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Label as UILabel } from "@/components/ui/label"
+import { useMovingAverage, MADataPoint } from "@/hooks/use-moving-average"
+
+// Define the data structures for our chart data
+type UnemploymentDataPoint = {
+  date: number // timestamp
+  value: number // unemployment value
+}
+
+// Define the unemployment data type options
+type UnemploymentDataType = 'unemploy' | 'u1rate' | 'emratio';
+
+interface UnemploymentDataChartProps {
+  startDate?: string
+  endDate?: string
+  data: {
+    unemploy: { date: string; value: number }[]
+    u1rate: { date: string; value: number }[]
+    emratio: { date: string; value: number }[]
+  }
+}
+
+export function UnemploymentDataChart({ startDate, endDate, data: chartData }: UnemploymentDataChartProps) {
+  // State for which data series to display
+  const [dataType, setDataType] = useState<UnemploymentDataType>('unemploy')
+  
+  // State for filtered data (what's displayed in the chart)
+  const [data, setData] = useState<UnemploymentDataPoint[]>([])
+  // State for the complete dataset
+  const [fullDataset, setFullDataset] = useState<UnemploymentDataPoint[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  
+  // State for moving average data
+  const [movingAverageData, setMovingAverageData] = useState<MADataPoint[]>([])
+  // State for filtered moving average line
+  const [filteredMALine, setFilteredMALine] = useState<MADataPoint[]>([])
+  // State for risk assessment
+  const [riskLevel, setRiskLevel] = useState<"low" | "medium" | "high">("medium")
+  // State for current vs. average comparison
+  const [currentVsMA, setCurrentVsMA] = useState<{
+    current: number | null;
+    previous: number | null;
+    average: number | null;
+    percentDifference: number | null;
+  }>({
+    current: null,
+    previous: null,
+    average: null,
+    percentDifference: null,
+  });
+
+  // Helper function to convert date strings to timestamps
+  const parseData = (rawData: { date: string; value: number }[]) => {
+    return rawData.map(item => ({
+      date: new Date(item.date).getTime(),
+      value: item.value
+    }));
+  };
+
+  // Process data when component mounts, chart data changes, or dataType changes
+  useEffect(() => {
+    setLoading(true);
+    try {
+      const currentData = chartData[dataType] || [];
+      
+      // Parse the data to convert string dates to timestamps
+      const parsedData = parseData(currentData);
+      
+      // Store the full dataset
+      setFullDataset(parsedData);
+      setError(null);
+    } catch (err: any) {
+      console.error(`Error processing ${dataType} data:`, err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [chartData, dataType]);
+
+  // Calculate moving averages with our custom hook
+  const { maLine } = useMovingAverage(fullDataset, {
+    windowSize: 50,
+    valueKey: 'value',
+    useTimeBased: false // Use count-based window rather than time-based
+  });
+  
+  // Update state when moving average data changes
+  useEffect(() => {
+    if (loading || fullDataset.length === 0) return;
+    setMovingAverageData(maLine);
+  }, [maLine, loading, fullDataset]);  
+  
+  // Filter data based on date range
+  useEffect(() => {
+    if (loading || fullDataset.length === 0) return;
+    
+    // Then filter both the data and the MA for display
+    let filteredData = [...fullDataset];
+    let filteredMA = [...movingAverageData];
+    
+    // Filter by start date if provided
+    if (startDate) {
+      const startTimestamp = new Date(startDate).getTime();
+      filteredData = filteredData.filter(item => item.date >= startTimestamp);
+      filteredMA = filteredMA.filter(item => item.date >= startTimestamp);
+    }
+    
+    // Filter by end date if provided
+    if (endDate) {
+      const endTimestamp = new Date(endDate).getTime();
+      filteredData = filteredData.filter(item => item.date <= endTimestamp);
+      filteredMA = filteredMA.filter(item => item.date <= endTimestamp);
+    }
+    
+    // If no data after filtering (or empty array), use full dataset but show warning
+    if (filteredData.length === 0) {
+      filteredData = [...fullDataset];
+      filteredMA = [...movingAverageData];
+      setError('No data available for the selected date range. Showing full dataset.');
+    } else {
+      // Clear any previous errors if we have data
+      if (error === 'No data available for the selected date range. Showing full dataset.') {
+        setError(null);
+      }
+    }
+    
+    setData(filteredData);
+    setFilteredMALine(filteredMA);
+
+    // Calculate risk levels based on the filtered data and MA
+    if (dataType === 'unemploy') {
+      calculateRiskLevels(filteredData, filteredMA);
+    } else if (dataType === 'u1rate') {
+      calculateRiskLevelsForU1Rate(filteredData, filteredMA);
+    } else {
+      calculateRiskLevelsForEmRatio(filteredData, filteredMA);
+    }
+    
+  }, [fullDataset, startDate, endDate, loading, error, dataType]);
+
+
+
+  // Calculate risk levels based on current data vs MA for Unemployment Level
+  const calculateRiskLevels = (dataPoints: UnemploymentDataPoint[], maData: MADataPoint[]) => {
+    if (!dataPoints || dataPoints.length === 0 || !maData || maData.length === 0) {
+      setRiskLevel("medium");
+      setCurrentVsMA({
+        current: null,
+        previous: null,
+        average: null,
+        percentDifference: null,
+      });
+      return;
+    }
+    
+    // Get most recent data points
+    const latestDataPoint = dataPoints[dataPoints.length - 1];
+    const previousDataPoint = dataPoints.length > 1 ? dataPoints[dataPoints.length - 2] : null;
+    
+    // Find matching MA value for the latest data point
+    const latestMAPoint = maData.find(ma => ma.date === latestDataPoint.date);
+    
+    if (!latestMAPoint || isNaN(latestMAPoint.maValue)) {
+      setRiskLevel("medium");
+      return;
+    }
+    
+    // Calculate percentage difference
+    const percentDiff = ((latestDataPoint.value - latestMAPoint.maValue) / latestMAPoint.maValue) * 100;
+    
+    // Set risk level based on percentage above/below MA
+    // For unemployment level, higher values are worse for the economy
+    if (percentDiff > 5) {
+      setRiskLevel("high");
+    } else if (percentDiff < -5) {
+      setRiskLevel("low");
+    } else {
+      setRiskLevel("medium");
+    }
+    
+    // Update state with current metrics
+    setCurrentVsMA({
+      current: latestDataPoint.value,
+      previous: previousDataPoint?.value || null,
+      average: latestMAPoint.maValue,
+      percentDifference: percentDiff,
+    });
+  };
+  
+  // Calculate risk levels for U1 Rate
+  const calculateRiskLevelsForU1Rate = (dataPoints: UnemploymentDataPoint[], maData: MADataPoint[]) => {
+    if (!dataPoints || dataPoints.length === 0 || !maData || maData.length === 0) {
+      setRiskLevel("medium");
+      setCurrentVsMA({
+        current: null,
+        previous: null,
+        average: null,
+        percentDifference: null,
+      });
+      return;
+    }
+    
+    // Get most recent data points
+    const latestDataPoint = dataPoints[dataPoints.length - 1];
+    const previousDataPoint = dataPoints.length > 1 ? dataPoints[dataPoints.length - 2] : null;
+    
+    // Find matching MA value for the latest data point
+    const latestMAPoint = maData.find(ma => ma.date === latestDataPoint.date);
+    
+    if (!latestMAPoint || isNaN(latestMAPoint.maValue)) {
+      setRiskLevel("medium");
+      return;
+    }
+    
+    // Calculate percentage difference
+    const percentDiff = ((latestDataPoint.value - latestMAPoint.maValue) / latestMAPoint.maValue) * 100;
+    
+    // Set risk level based on absolute value - for U1RATE, higher values are worse
+    if (percentDiff > 8) {
+      setRiskLevel("high");
+    } else if (percentDiff < -5) {
+      setRiskLevel("low");
+    } else {
+      setRiskLevel("medium");
+    }
+    
+    // Update state with current metrics
+    setCurrentVsMA({
+      current: latestDataPoint.value,
+      previous: previousDataPoint?.value || null,
+      average: latestMAPoint.maValue,
+      percentDifference: percentDiff,
+    });
+  };
+  
+  // Calculate risk levels for Employment-Population Ratio
+  const calculateRiskLevelsForEmRatio = (dataPoints: UnemploymentDataPoint[], maData: MADataPoint[]) => {
+    if (!dataPoints || dataPoints.length === 0 || !maData || maData.length === 0) {
+      setRiskLevel("medium");
+      setCurrentVsMA({
+        current: null,
+        previous: null,
+        average: null,
+        percentDifference: null,
+      });
+      return;
+    }
+    
+    // Get most recent data points
+    const latestDataPoint = dataPoints[dataPoints.length - 1];
+    const previousDataPoint = dataPoints.length > 1 ? dataPoints[dataPoints.length - 2] : null;
+    
+    // Find matching MA value for the latest data point
+    const latestMAPoint = maData.find(ma => ma.date === latestDataPoint.date);
+    
+    if (!latestMAPoint || isNaN(latestMAPoint.maValue)) {
+      setRiskLevel("medium");
+      return;
+    }
+    
+    // Calculate percentage difference
+    const percentDiff = ((latestDataPoint.value - latestMAPoint.maValue) / latestMAPoint.maValue) * 100;
+    
+    // Set risk level based on absolute value - for EMRATIO, lower values are worse
+    if (percentDiff < -3) {
+      setRiskLevel("high");
+    } else if (percentDiff > 3) {
+      setRiskLevel("low");
+    } else {
+      setRiskLevel("medium");
+    }
+    
+    // Update state with current metrics
+    setCurrentVsMA({
+      current: latestDataPoint.value,
+      previous: previousDataPoint?.value || null,
+      average: latestMAPoint.maValue,
+      percentDifference: percentDiff,
+    });
+  };
+
+  // Get the appropriate chart title and description based on dataType
+  const getChartTitle = () => {
+    switch(dataType) {
+      case 'unemploy':
+        return 'Unemployment Level';
+      case 'u1rate':
+        return 'Unemployment Rate (U-1)';
+      case 'emratio':
+        return 'Employment-Population Ratio';
+      default:
+        return 'Unemployment Data';
+    }
+  };
+  
+  // Get the citation IDs based on the selected data type
+  const getCitationIds = () => {
+    switch(dataType) {
+      case 'unemploy':
+        return [6, 5]; // Unemployment Level and NBER recession data
+      case 'u1rate':
+        return [7, 5]; // U1 Rate and NBER recession data
+      case 'emratio':
+        return [8, 5]; // Employment-Population Ratio and NBER recession data
+      default:
+        return [6, 7, 8, 5];
+    }
+  };
+  
+  const getChartDescription = () => {
+    switch(dataType) {
+      case 'unemploy':
+        return 'Total unemployed, in thousands of persons';
+      case 'u1rate':
+        return 'Percent of civilian labor force unemployed 15 weeks or longer';
+      case 'emratio':
+        return 'Ratio of employed people to the total working-age population';
+      default:
+        return '';
+    }
+  };
+  
+  const getChartValueLabel = () => {
+    switch(dataType) {
+      case 'unemploy':
+        return 'Thousands of persons';
+      case 'u1rate':
+        return 'Percent';
+      case 'emratio':
+        return 'Percent';
+      default:
+        return '';
+    }
+  };
+  
+  // Helper function to get Y-axis domain based on data type
+  const getYAxisDomain = () => {
+    if (data.length === 0) return ['auto', 'auto'];
+    
+    switch(dataType) {
+      case 'unemploy':
+        // Get min and max from data with a small buffer
+        const minUnemploy = Math.min(...data.map(d => d.value)) * 0.9;
+        const maxUnemploy = Math.max(...data.map(d => d.value)) * 1.1;
+        return [minUnemploy, maxUnemploy];
+      case 'u1rate':
+        // For U-1 rate, set a reasonable range that starts from 0
+        // since these are percentage values
+        return [0, Math.max(Math.max(...data.map(d => d.value)) * 1.2, 5)];
+      case 'emratio':
+        // For employment-population ratio, we want to emphasize changes
+        // so set a narrower range around the data
+        const values = data.map(d => d.value);
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        const buffer = (max - min) * 0.3;
+        return [Math.max(min - buffer, 0), Math.min(max + buffer, 100)];
+      default:
+        return ['auto', 'auto'];
+    }
+  };
+  
+  // Helper function to format Y-axis ticks based on data type
+  const getYAxisTickFormatter = (value: number) => {
+    switch(dataType) {
+      case 'unemploy':
+        // Format as thousands with commas
+        return value.toLocaleString();
+      case 'u1rate':
+      case 'emratio':
+        // Format as percentage with 1 decimal place
+        return `${value.toFixed(1)}%`;
+      default:
+        return value.toString();
+    }
+  };
+  
+  const getChartExplanation = () => {
+    switch(dataType) {
+      case 'unemploy':
+        return riskLevel === "high"
+          ? "Unemployment levels have risen significantly above the moving average, suggesting potential economic contraction."
+          : riskLevel === "medium"
+            ? "Unemployment levels are near historical norms, showing neither strong growth nor contraction."
+            : "Unemployment levels remain low relative to the moving average, suggesting a strong labor market.";
+      case 'u1rate':
+        return riskLevel === "high"
+          ? "Long-term unemployment (15+ weeks) has risen significantly, a concerning signal for economic health."
+          : riskLevel === "medium"
+            ? "Long-term unemployment is moderate, showing neither strength nor significant weakness."
+            : "Long-term unemployment remains low, indicating a healthy labor market with good job prospects.";
+      case 'emratio':
+        return riskLevel === "high"
+          ? "The employment-population ratio has fallen below trend, suggesting fewer working-age adults are employed."
+          : riskLevel === "medium"
+            ? "The employment-population ratio is close to its recent average, indicating stable labor market participation."
+            : "The employment-population ratio is strong, with a higher percentage of the working-age population employed.";
+      default:
+        return '';
+    }
+  };
+
+  return (
+    <section className="pb-6 border-b">
+      <ChartHeader 
+        title={getChartTitle()}
+        description={getChartDescription()}
+        value={currentVsMA.current || 0}
+        previousValue={currentVsMA.previous || undefined}
+        riskLevel={riskLevel}
+        citations={getCitationIds()}
+      />
+      
+      {/* Series Selection Controls */}
+      <div className="mt-2">
+        <RadioGroup
+          value={dataType}
+          onValueChange={(value) => setDataType(value as UnemploymentDataType)}
+          className="flex space-x-4"
+          defaultValue="unemploy"
+        >
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="unemploy" id="unemploy" />
+            <UILabel htmlFor="unemploy">Unemployment Level</UILabel>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="u1rate" id="u1rate" />
+            <UILabel htmlFor="u1rate">U-1 Rate</UILabel>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="emratio" id="emratio" />
+            <UILabel htmlFor="emratio">Employment-Population Ratio</UILabel>
+          </div>
+        </RadioGroup>
+      </div>
+
+      {loading ? (
+        <div className="h-[300px] w-full flex items-center justify-center bg-muted/20 rounded-md">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-muted-foreground">Loading data...</span>
+        </div>
+      ) : error ? (
+        <div className="h-[300px] w-full flex items-center justify-center bg-muted/20 rounded-md">
+          <p className="text-red-500">{error}</p>
+        </div>
+      ) : (
+        <div>
+          <div className="mb-4">
+            <ChartContainer
+              config={{
+                value: {
+                  label: getChartValueLabel(),
+                  color: "hsl(var(--chart-2))",
+                },
+                maValue: {
+                  label: "50-day MA",
+                  color: "hsl(var(--foreground))",
+                },
+              }}
+              className="h-[300px]"
+            >
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    type="number"
+                    domain={['auto', 'auto']}
+                    scale="time"
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(timestamp) => {
+                      const date = new Date(timestamp);
+                      return date.toLocaleDateString(undefined, {
+                        year: '2-digit',
+                        month: 'short',
+                      });
+                    }}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    domain={getYAxisDomain()}
+                    tickFormatter={(value) => getYAxisTickFormatter(value)}
+                  />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        labelFormatter={(timestamp) => {
+                          if (typeof timestamp === 'number') {
+                            const date = new Date(timestamp);
+                            return date.toLocaleDateString(undefined, {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            });
+                          }
+                          return String(timestamp);
+                        }}
+                      />
+                    }
+                  />
+                  
+                  {/* Add the 50-day moving average dotted line */}
+                  <Line
+                    data={filteredMALine}
+                    type="monotone"
+                    dataKey="maValue" // Using a different dataKey to avoid conflicts
+                    name="50-day MA"
+                    stroke="hsl(var(--foreground))"
+                    strokeWidth={1.5}
+                    strokeDasharray="5 5"
+                    dot={false}
+                    activeDot={false}
+                    connectNulls={true}
+                    isAnimationActive={false}
+                  />
+                  
+                  {/* Main value line with dots */}
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    name={getChartTitle()}
+                    stroke={riskLevel === "high" ? "rgb(220, 38, 38)" : riskLevel === "medium" ? "rgb(202, 138, 4)" : "rgb(22, 163, 74)"}
+                    strokeWidth={2}
+                    // Use the dot property to control density
+                    dot={(props) => {
+                      // Only render dots at specific intervals (adjust pointDensity to control density)
+                      const pointDensity = 5;
+                      const { cx, cy, index, payload } = props;
+                      // Always show first and last points, plus every Nth point
+                      if (index % pointDensity === 0 || index === 0 || index === (data.length - 1)) {
+                        return (
+                          <circle 
+                            key={`dot-${index}`}
+                            cx={cx} 
+                            cy={cy} 
+                            r={3} 
+                            fill={riskLevel === "high" ? "rgb(220, 38, 38)" : riskLevel === "medium" ? "rgb(202, 138, 4)" : "rgb(22, 163, 74)"} 
+                            className="recharts-dot"
+                          />
+                        );
+                      }
+                      // For points we don't want to show, render an invisible dot
+                      return <circle key={`dot-${index}`} cx={cx} cy={cy} r={0} fill="transparent" />;
+                    }}
+                    activeDot={{ r: 5, strokeWidth: 1 }}
+                    connectNulls={true}
+                  />
+                  
+                  {renderRecessionReferenceAreas()} {/* Use recession overlay */}
+                </ComposedChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </div>
+
+          <div className="mt-4">
+            <div className="flex items-start gap-2 mb-2">
+              <Info className="h-5 w-5 mt-0.5 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">
+                  {dataType === 'unemploy' 
+                    ? "The Unemployment Level tracks the total number of unemployed persons in the U.S." 
+                    : dataType === 'u1rate' 
+                      ? "The U-1 Rate measures the percentage of civilians unemployed for 15 weeks or longer."
+                      : "The Employment-Population Ratio represents the proportion of the country's working-age population that is employed."}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {getChartExplanation()}
+                </p>
+                {currentVsMA.percentDifference !== null && (
+                  <p className="text-sm font-medium mt-1">
+                    Current value is {Math.abs(currentVsMA.percentDifference).toFixed(1)}% 
+                    {currentVsMA.percentDifference >= 0 ? " above " : " below "} 
+                    the 50-day moving average.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}

@@ -4,6 +4,7 @@ import { useState } from "react"
 import { YieldCurveChart } from "@/components/charts/yield-curve-chart"
 import { ConsumerSentimentChart } from "@/components/charts/consumer-sentiment-chart"
 import { HousingPermitsChart } from "@/components/charts/housing-permits-chart"
+import { UnemploymentDataChart } from "@/components/charts/unemployment-data/unemployment-data-chart"
 import { RecessionProbabilityGauge } from "@/components/recession-probability-gauge"
 import { LatestBlogPost } from "@/components/latest-blog-post"
 import { DateRangeSelector } from "@/components/date-range-selector"
@@ -17,12 +18,18 @@ interface RecessionDashboardProps {
   }
   consumerSentimentData: { date: string; value: number }[]
   housingPermitsData: { date: string; value: number }[]
+  unemploymentData: {
+    unemploy: { date: string; value: number }[]
+    u1rate: { date: string; value: number }[]
+    emratio: { date: string; value: number }[]
+  }
 }
 
 export default function RecessionDashboard({ 
   yieldCurveData, 
   consumerSentimentData, 
-  housingPermitsData 
+  housingPermitsData,
+  unemploymentData 
 }: RecessionDashboardProps) {
   // State for date range
   const [dateRange, setDateRange] = useState({
@@ -77,6 +84,11 @@ export default function RecessionDashboard({
           startDate={dateRange.startDate} 
           endDate={dateRange.endDate}
           data={housingPermitsData}
+        />
+        <UnemploymentDataChart 
+          startDate={dateRange.startDate} 
+          endDate={dateRange.endDate}
+          data={unemploymentData}
         />
       </div>
 
