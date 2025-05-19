@@ -408,6 +408,19 @@ export function UnemploymentDataChart({ startDate, endDate, data: chartData }: U
     }
   };
   
+  // Helper function to get the appropriate value suffix based on data type
+  const getValueSuffix = () => {
+    switch (dataType) {
+      case 'unemploy':
+        return " thousand";
+      case 'u1rate':
+      case 'emratio':
+        return "%";
+      default:
+        return "";
+    }
+  };
+  
   // Helper function to get Y-axis domain based on data type
   const getYAxisDomain = () => {
     if (data.length === 0) return ['auto', 'auto'];
@@ -496,6 +509,8 @@ export function UnemploymentDataChart({ startDate, endDate, data: chartData }: U
         value={currentVsMA.current || 0}
         previousValue={currentVsMA.previous || undefined}
         riskLevel={riskLevel}
+        valueSuffix={getValueSuffix()}
+        valueDecimals={dataType === 'unemploy' ? 0 : 1}
         citations={getCitationIds()}
       />
       

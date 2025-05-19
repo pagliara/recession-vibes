@@ -210,6 +210,10 @@ export function HousingPermitsChart({ startDate, endDate, data: chartData }: Hou
         value={currentVsMA.current || 0}
         previousValue={currentVsMA.previous || 0}
         riskLevel={riskLevel}
+        valueDecimals={0}
+        valueSuffix=" thousand"
+        loading={loading} 
+        error={error}
         citations={[4, 5]}
       />
       

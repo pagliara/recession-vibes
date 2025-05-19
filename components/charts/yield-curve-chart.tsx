@@ -331,8 +331,7 @@ export function YieldCurveChart({ startDate, endDate, data: chartData }: YieldCu
 
   // Convert string dates from props to numeric timestamps for the domain
   const numericStartDate = startDate ? new Date(startDate).getTime() : undefined;
-  const numericEndDate = endDate ? new Date(endDate).getTime() : undefined;
-
+  
   return (
     <section className="pb-6 border-b">
       <ChartHeader
@@ -340,18 +339,20 @@ export function YieldCurveChart({ startDate, endDate, data: chartData }: YieldCu
         description={spreadType === 'T10Y2Y' 
           ? "The difference between 10-year and 2-year Treasury yields" 
           : "The difference between 10-year and 3-month Treasury yields"}
-        value={daysSinceLastTransition ?? 0}
-        riskLevel={daysSinceLastTransition !== null && daysSinceLastTransition > 0 ? 'high' : 'low'}
+        value={currentSpread}
+        previousValue={previousSpread}
+        riskLevel={isInverted ? "high" : isWorsening ? "medium" : "low"}
         loading={loading}
         error={error}
-        valueSuffix=" days"
-        valueDecimals={0}
+        valueSuffix="%"
+        valueDecimals={2}
+        customValueColor={isInverted ? "text-destructive" : undefined}
         citations={[1, 2, 5]}
       >
         <div className="mt-2">
           <RadioGroup
             value={spreadType}
-            onValueChange={(value) => setSpreadType(value as SpreadType)}
+            onValueChange={(value: string) => setSpreadType(value as SpreadType)}
             className="flex space-x-4"
             defaultValue="T10Y2Y"
           >

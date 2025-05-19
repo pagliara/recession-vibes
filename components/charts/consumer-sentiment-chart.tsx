@@ -197,6 +197,7 @@ export function ConsumerSentimentChart({ startDate, endDate, data: chartData }: 
         loading={loading} 
         error={error} 
         valueDecimals={1}
+        valueSuffix=" points"
         citations={[3, 5]}
       />
 
