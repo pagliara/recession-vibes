@@ -234,6 +234,7 @@ export function ConsumerSentimentChart({ startDate, endDate, data: chartData }: 
                   {...createResponsiveYAxis({
                     isMobile,
                     axisLabel: "Consumer Sentiment Index",
+                    domain: [0, 'auto'],
                   })}
                 />
                 <ChartTooltip
