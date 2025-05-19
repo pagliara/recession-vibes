@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Line, CartesianGrid, ComposedChart, ResponsiveContainer, XAxis, YAxis, Label, Tooltip } from "recharts"
+import { Line, CartesianGrid, ComposedChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
+import { createResponsiveXAxis, createResponsiveYAxis } from "@/components/charts/utils/axis-config"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Info, Loader2 } from "lucide-react"
 import { renderRecessionReferenceAreas } from "@/components/charts/overlays/recession/recession-overlay"
@@ -32,6 +33,7 @@ interface UnemploymentDataChartProps {
 export function UnemploymentDataChart({ startDate, endDate, data: chartData }: UnemploymentDataChartProps) {
   // State for which data series to display
   const [dataType, setDataType] = useState<UnemploymentDataType>('unemploy')
+  const [isMobile, setIsMobile] = useState(false)
   
   // State for filtered data (what's displayed in the chart)
   const [data, setData] = useState<UnemploymentDataPoint[]>([])
@@ -112,6 +114,22 @@ export function UnemploymentDataChart({ startDate, endDate, data: chartData }: U
     setMovingAverageData(maLine);
   }, [maLine, loading, fullDataset]);  
   
+  // Check for mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640); // 640px is Tailwind's sm breakpoint
+    };
+    
+    // Check initially
+    checkMobile();
+    
+    // Add resize listener
+    window.addEventListener('resize', checkMobile);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   // Filter data based on date range
   useEffect(() => {
     if (loading || fullDataset.length === 0) return;
@@ -532,30 +550,36 @@ export function UnemploymentDataChart({ startDate, endDate, data: chartData }: U
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis
-                    dataKey="date"
-                    type="number"
-                    domain={['auto', 'auto']}
-                    scale="time"
-                    tickLine={false}
-                    axisLine={false}
-                    tickFormatter={(timestamp) => {
-                      const date = new Date(timestamp);
-                      return date.toLocaleDateString(undefined, {
-                        year: '2-digit',
-                        month: 'short',
-                      });
-                    }}
+                  <XAxis 
+                    {...createResponsiveXAxis({
+                      isMobile,
+                      dataKey: "date",
+                      type: "number",
+                      domain: ['dataMin', 'dataMax'], 
+                      tickFormatter: (timestamp) => {
+                        // Format date for display (MM/DD)
+                        const date = new Date(timestamp);
+                        return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`; // Format as MM/DD
+                      },
+                      padding: { left: 10, right: 10 },
+                      scale: "time",
+                      tickCount: isMobile ? 4 : 7
+                    })}
                   />
-                  <YAxis
-                    domain={getYAxisDomain()}
-                    orientation="right"
-                    tickFormatter={getYAxisTickFormatter}
-                    width={80}
-                    tickCount={7}
-                    tick={{ fontSize: 12 }}
-                    allowDataOverflow={false}
-                    allowDecimals={dataType !== 'unemploy'}
+                  <YAxis 
+                    {...createResponsiveYAxis({
+                      isMobile,
+                      domain: getYAxisDomain(),
+                      tickFormatter: getYAxisTickFormatter,
+                      mobileWidth: 50,
+                      desktopWidth: 100, // Increased to accommodate longer labels
+                      mobileFontSize: 10,
+                      desktopFontSize: 12,
+                      allowDataOverflow: false,
+                      allowDecimals: dataType !== 'unemploy',
+                      axisLabel: dataType === 'u1rate' ? 'Rate (%)' : dataType === 'unemploy' ? 'Population' : 'Employment Ratio',
+                      labelOffset: -40 // Increased offset to prevent label clipping
+                    })}
                   />
                   <ChartTooltip
                     content={

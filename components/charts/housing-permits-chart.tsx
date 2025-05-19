@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Line, CartesianGrid, ComposedChart, ResponsiveContainer, XAxis, YAxis, Label } from "recharts"
+import { Line, CartesianGrid, ComposedChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
+import { createResponsiveXAxis, createResponsiveYAxis } from "@/components/charts/utils/axis-config"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Info, Loader2 } from "lucide-react"
 import { renderRecessionReferenceAreas } from "@/components/charts/overlays/recession/recession-overlay"
@@ -47,6 +48,7 @@ export function HousingPermitsChart({ startDate, endDate, data: chartData }: Hou
   const [fullDataset, setFullDataset] = useState<HousingPermitsDataPoint[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
   
   // State for moving average data
   const [movingAverageData, setMovingAverageData] = useState<MADataPoint[]>([])
@@ -76,6 +78,22 @@ export function HousingPermitsChart({ startDate, endDate, data: chartData }: Hou
   };
 
   // No longer needed as data is passed via props
+
+  // Check for mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640); // 640px is Tailwind's sm breakpoint
+    };
+    
+    // Check initially
+    checkMobile();
+    
+    // Add resize listener
+    window.addEventListener('resize', checkMobile);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Process data when component mounts or data changes
   useEffect(() => {
@@ -210,7 +228,7 @@ export function HousingPermitsChart({ startDate, endDate, data: chartData }: Hou
           </div>
         </div>
       ) : (
-        <div className="rounded-md border p-2">
+        <div className="rounded-md p-2">
           <div className="h-[350px]">
             <ChartContainer 
               className="h-full"
@@ -225,7 +243,7 @@ export function HousingPermitsChart({ startDate, endDate, data: chartData }: Hou
                 }
               }}
             >
-                <ComposedChart data={data} margin={{ top: 20, right: 30, left: 30, bottom: 20 }}>
+                <ComposedChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorHousingPermits" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="hsl(var(--chart-1))" stopOpacity={0.8} />
@@ -233,41 +251,30 @@ export function HousingPermitsChart({ startDate, endDate, data: chartData }: Hou
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis
-                    dataKey="date"
-                    type="number"
-                    domain={['dataMin', 'dataMax']}
-                    tickLine={false}
-                    axisLine={false}
-                    scale="time"
-                    padding={{ left: 10, right: 10 }}
-                    tick={{ fontSize: 12 }}
-                    tickFormatter={(timestamp) => {
-                      // Format date for display (MM/YYYY)
-                      const date = new Date(timestamp);
-                      return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear().toString().substr(2, 2)}`;
-                    }}
-                    allowDataOverflow
+                  <XAxis 
+                    {...createResponsiveXAxis({
+                      isMobile,
+                      dataKey: "date",
+                      type: "number",
+                      domain: ['dataMin', 'dataMax'],
+                      tickFormatter: (value: number) => {
+                        // Format date for display (MM/YYYY)
+                        const date = new Date(value);
+                        return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear().toString().substr(2, 2)}`;
+                      },
+                      allowDataOverflow: true,
+                      scale: "time"
+                    })}
                   />
                   <YAxis 
-                    tickLine={false} 
-                    axisLine={false} 
-                    width={50}
-                    domain={[0, 'dataMax + 200']}
-                    padding={{ top: 40, bottom: 20 }}
                     allowDecimals={false}
-                    allowDataOverflow
-                    tickFormatter={(value) => (value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value)}
-                  >
-                    <Label
-                      value="Units (thousands)"
-                      position="insideLeft"
-                      angle={-90}
-                      style={{ textAnchor: 'middle', fill: 'var(--muted-foreground)' }}
-                      className="text-xs fill-muted-foreground"
-                      offset={-25}
-                    />
-                  </YAxis>
+                    tickFormatter={(value: number) => (value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toString())}
+                    {...createResponsiveYAxis({
+                      isMobile,
+                      axisLabel: "Housing Permits (thousands)", 
+                      domain: ['auto', 'dataMax + 200'], // Set explicit domain for housing permits data
+                    })}
+                  />
                   
                   <ChartTooltip
                     content={

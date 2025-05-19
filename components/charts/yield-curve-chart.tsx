@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Area, CartesianGrid, ComposedChart, ReferenceArea, ResponsiveContainer, ReferenceDot, XAxis, YAxis, Label } from "recharts"
+import { Area, CartesianGrid, ComposedChart, ReferenceArea, ResponsiveContainer, ReferenceDot, XAxis, YAxis } from "recharts"
+import { createResponsiveXAxis, createResponsiveYAxis } from "@/components/charts/utils/axis-config"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Info, Loader2 } from "lucide-react"
 import { historicalRecessionPeriods } from "@/components/charts/overlays/recession/recession-periods"; 
@@ -63,6 +64,23 @@ export function YieldCurveChart({ startDate, endDate, data: chartData }: YieldCu
     t10y2y: [],
     t10y3m: []
   })
+  const [isMobile, setIsMobile] = useState(false)
+  
+  // Check for mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640); // 640px is Tailwind's sm breakpoint
+    };
+    
+    // Check initially
+    checkMobile();
+    
+    // Add resize listener
+    window.addEventListener('resize', checkMobile);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   const [spreadType, setSpreadType] = useState<SpreadType>('T10Y2Y')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -387,20 +405,26 @@ export function YieldCurveChart({ startDate, endDate, data: chartData }: YieldCu
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis
-                id="0"
-                dataKey="date"
-                type="number"
-                domain={['dataMin', 'dataMax']} // Always use the min/max of filtered data
-                tickLine={false}
-                axisLine={false}
-                allowDataOverflow={true} // Ensure reference areas slightly outside data points can be shown
-                tickFormatter={(value) => {
-                  // Format date for display (MM/DD)
-                  const date = new Date(value)
-                  return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`
-                }}
+                {...createResponsiveXAxis({
+                  isMobile,
+                  dataKey: "date",
+                  type: "number",
+                  domain: ['dataMin', 'dataMax'],
+                  allowDataOverflow: true,
+                  tickFormatter: (value: number) => {
+                    // Format date for display (MM/DD)
+                    const date = new Date(value);
+                    return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`
+                  }
+                })}
               />
-              <YAxis id="0" tickLine={false} axisLine={false} tickFormatter={(value) => `${value.toFixed(2)}%`} />
+              <YAxis
+                {...createResponsiveYAxis({
+                  isMobile,
+                  tickFormatter: (value: number) => `${value.toFixed(2)}%`,
+                  axisLabel: "Treasury Yield Spread (%)",
+                })}
+              />
               <ChartTooltip
                 content={
                   <ChartTooltipContent

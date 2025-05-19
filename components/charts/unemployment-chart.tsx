@@ -45,6 +45,23 @@ interface UnemploymentChartProps {
 
 export function UnemploymentChart({ startDate, endDate }: UnemploymentChartProps) {
   const [processedData, setProcessedData] = useState<UnemploymentDataPoint[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // Check for mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640); // 640px is Tailwind's sm breakpoint
+    };
+    
+    // Check initially
+    checkMobile();
+    
+    // Add resize listener
+    window.addEventListener('resize', checkMobile);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     const startTimestamp = startDate ? new Date(startDate).getTime() : -Infinity;
@@ -126,7 +143,27 @@ export function UnemploymentChart({ startDate, endDate }: UnemploymentChartProps
                   const date = new Date(value);
                   return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`; // Format as MM/DD
               }} />
-              <YAxis tickLine={false} axisLine={false} domain={["dataMin - 20", "dataMax + 20"]} />
+              <YAxis 
+                tickLine={false} 
+                axisLine={false} 
+                domain={["dataMin - 20", "dataMax + 20"]} 
+                orientation={isMobile ? "right" : "left"}
+                tick={{
+                  fontSize: 10, // Keep tick labels but slightly smaller
+                }}
+                width={isMobile ? 30 : 60} // More space for larger screens with label
+              >
+                {!isMobile && (
+                  <Label 
+                    value="Claims (thousands)" 
+                    angle={-90} 
+                    position="insideLeft"
+                    style={{ textAnchor: 'middle', fill: 'var(--muted-foreground)' }}
+                    className="text-xs fill-muted-foreground"
+                    offset={-20}
+                  />
+                )}
+              </YAxis>
               <ChartTooltip 
                 content={
                   <ChartTooltipContent 

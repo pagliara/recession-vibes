@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Line, CartesianGrid, ComposedChart, ReferenceArea, ResponsiveContainer, XAxis, YAxis, Label } from "recharts"
+import { Line, CartesianGrid, ComposedChart, ReferenceArea, ResponsiveContainer, XAxis, YAxis } from "recharts"
+import { createResponsiveXAxis, createResponsiveYAxis } from "@/components/charts/utils/axis-config"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Info, Loader2 } from "lucide-react"
 import { historicalRecessionPeriods } from "@/components/charts/overlays/recession/recession-periods"
@@ -48,6 +49,7 @@ export function ConsumerSentimentChart({ startDate, endDate, data: chartData }: 
   const [fullDataset, setFullDataset] = useState<ConsumerSentimentDataPoint[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
 
   // Helper function to convert date strings to timestamps
   const parseData = (rawData: { date: string; value: number }[]) => {
@@ -76,6 +78,22 @@ export function ConsumerSentimentChart({ startDate, endDate, data: chartData }: 
       setLoading(false);
     }
   }, [chartData]);
+
+  // Check for mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640); // 640px is Tailwind's sm breakpoint
+    };
+    
+    // Check initially
+    checkMobile();
+    
+    // Add resize listener
+    window.addEventListener('resize', checkMobile);
+    
+    // Cleanup
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Filter data based on date range
   useEffect(() => {
@@ -197,26 +215,26 @@ export function ConsumerSentimentChart({ startDate, endDate, data: chartData }: 
             }}
             className="h-full"
           >
-              <ComposedChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+              <ComposedChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis 
-                  dataKey="date" 
-                  type="number"
-                  domain={['dataMin', 'dataMax']} 
-                  tickLine={false} 
-                  axisLine={false}
-                  allowDataOverflow={true}
-                  padding={{ left: 10, right: 10 }}
-                  tickFormatter={(value) => {
-                    const date = new Date(value);
-                    return `${date.getMonth() + 1}/${date.getFullYear().toString().substr(2, 2)}`;
-                  }}
+                  {...createResponsiveXAxis({
+                    isMobile,
+                    dataKey: "date", 
+                    type: "number",
+                    domain: ['dataMin', 'dataMax'],
+                    tickFormatter: (value: number) => {
+                      const date = new Date(value);
+                      return `${date.getMonth() + 1}/${date.getFullYear().toString().substr(2, 2)}`;
+                    },
+                    allowDataOverflow: true
+                  })}
                 />
                 <YAxis 
-                  tickLine={false} 
-                  axisLine={false} 
-                  domain={['auto', 'auto']} 
-                  padding={{ top: 10, bottom: 10 }}
+                  {...createResponsiveYAxis({
+                    isMobile,
+                    axisLabel: "Consumer Sentiment Index",
+                  })}
                 />
                 <ChartTooltip
                   content={
