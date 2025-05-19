@@ -71,7 +71,18 @@ export function UnemploymentDataChart({ startDate, endDate, data: chartData }: U
   useEffect(() => {
     setLoading(true);
     try {
+      // Make sure chartData has the expected structure
+      if (!chartData || typeof chartData !== 'object') {
+        throw new Error(`Invalid chart data: data is ${typeof chartData}`);
+      }
+      
       const currentData = chartData[dataType] || [];
+      
+      // Validate data before processing
+      if (!Array.isArray(currentData)) {
+        console.error(`Data for ${dataType} is not an array:`, currentData);
+        throw new Error(`Invalid data format for ${dataType}`);
+      }
       
       // Parse the data to convert string dates to timestamps
       const parsedData = parseData(currentData);
@@ -81,7 +92,7 @@ export function UnemploymentDataChart({ startDate, endDate, data: chartData }: U
       setError(null);
     } catch (err: any) {
       console.error(`Error processing ${dataType} data:`, err);
-      setError(err.message);
+      setError(err.message || 'Error processing unemployment data');
     } finally {
       setLoading(false);
     }
@@ -89,6 +100,7 @@ export function UnemploymentDataChart({ startDate, endDate, data: chartData }: U
 
   // Calculate moving averages with our custom hook
   const { maLine } = useMovingAverage(fullDataset, {
+    // Use a consistent 50-day moving average across all economic indicators
     windowSize: 50,
     valueKey: 'value',
     useTimeBased: false // Use count-based window rather than time-based
@@ -122,6 +134,16 @@ export function UnemploymentDataChart({ startDate, endDate, data: chartData }: U
       filteredMA = filteredMA.filter(item => item.date <= endTimestamp);
     }
     
+    // Ensure no null or undefined values that could break the chart
+    filteredData = filteredData.filter(item => 
+      item.value !== null && item.value !== undefined && !isNaN(item.value)
+    );
+    
+    // Also ensure MA data has no null/undefined/NaN values
+    filteredMA = filteredMA.filter(item => 
+      item.maValue !== null && item.maValue !== undefined && !isNaN(item.maValue)
+    );
+    
     // If no data after filtering (or empty array), use full dataset but show warning
     if (filteredData.length === 0) {
       filteredData = [...fullDataset];
@@ -146,9 +168,7 @@ export function UnemploymentDataChart({ startDate, endDate, data: chartData }: U
       calculateRiskLevelsForEmRatio(filteredData, filteredMA);
     }
     
-  }, [fullDataset, startDate, endDate, loading, error, dataType]);
-
-
+  }, [fullDataset, movingAverageData, startDate, endDate, loading, error, dataType]);
 
   // Calculate risk levels based on current data vs MA for Unemployment Level
   const calculateRiskLevels = (dataPoints: UnemploymentDataPoint[], maData: MADataPoint[]) => {
@@ -168,7 +188,16 @@ export function UnemploymentDataChart({ startDate, endDate, data: chartData }: U
     const previousDataPoint = dataPoints.length > 1 ? dataPoints[dataPoints.length - 2] : null;
     
     // Find matching MA value for the latest data point
-    const latestMAPoint = maData.find(ma => ma.date === latestDataPoint.date);
+    let latestMAPoint = maData.find(ma => ma.date === latestDataPoint.date);
+    
+    // If exact match not found, find the closest date
+    if (!latestMAPoint && maData.length > 0) {
+      // Sort by absolute difference to find closest date
+      const sortedByDateDiff = [...maData].sort((a, b) => 
+        Math.abs(a.date - latestDataPoint.date) - Math.abs(b.date - latestDataPoint.date)
+      );
+      latestMAPoint = sortedByDateDiff[0];
+    }
     
     if (!latestMAPoint || isNaN(latestMAPoint.maValue)) {
       setRiskLevel("medium");
@@ -215,7 +244,16 @@ export function UnemploymentDataChart({ startDate, endDate, data: chartData }: U
     const previousDataPoint = dataPoints.length > 1 ? dataPoints[dataPoints.length - 2] : null;
     
     // Find matching MA value for the latest data point
-    const latestMAPoint = maData.find(ma => ma.date === latestDataPoint.date);
+    let latestMAPoint = maData.find(ma => ma.date === latestDataPoint.date);
+    
+    // If exact match not found, find the closest date
+    if (!latestMAPoint && maData.length > 0) {
+      // Sort by absolute difference to find closest date
+      const sortedByDateDiff = [...maData].sort((a, b) => 
+        Math.abs(a.date - latestDataPoint.date) - Math.abs(b.date - latestDataPoint.date)
+      );
+      latestMAPoint = sortedByDateDiff[0];
+    }
     
     if (!latestMAPoint || isNaN(latestMAPoint.maValue)) {
       setRiskLevel("medium");
@@ -261,7 +299,16 @@ export function UnemploymentDataChart({ startDate, endDate, data: chartData }: U
     const previousDataPoint = dataPoints.length > 1 ? dataPoints[dataPoints.length - 2] : null;
     
     // Find matching MA value for the latest data point
-    const latestMAPoint = maData.find(ma => ma.date === latestDataPoint.date);
+    let latestMAPoint = maData.find(ma => ma.date === latestDataPoint.date);
+    
+    // If exact match not found, find the closest date
+    if (!latestMAPoint && maData.length > 0) {
+      // Sort by absolute difference to find closest date
+      const sortedByDateDiff = [...maData].sort((a, b) => 
+        Math.abs(a.date - latestDataPoint.date) - Math.abs(b.date - latestDataPoint.date)
+      );
+      latestMAPoint = sortedByDateDiff[0];
+    }
     
     if (!latestMAPoint || isNaN(latestMAPoint.maValue)) {
       setRiskLevel("medium");
@@ -347,24 +394,31 @@ export function UnemploymentDataChart({ startDate, endDate, data: chartData }: U
   const getYAxisDomain = () => {
     if (data.length === 0) return ['auto', 'auto'];
     
+    // Make sure we have valid values before calculating min/max
+    const validValues = data.map(d => d.value).filter(v => v !== null && v !== undefined && !isNaN(v));
+    
+    if (validValues.length === 0) return ['auto', 'auto'];
+    
     switch(dataType) {
       case 'unemploy':
         // Get min and max from data with a small buffer
-        const minUnemploy = Math.min(...data.map(d => d.value)) * 0.9;
-        const maxUnemploy = Math.max(...data.map(d => d.value)) * 1.1;
+        const minUnemploy = Math.min(...validValues) * 0.9;
+        const maxUnemploy = Math.max(...validValues) * 1.1;
         return [minUnemploy, maxUnemploy];
       case 'u1rate':
         // For U-1 rate, set a reasonable range that starts from 0
         // since these are percentage values
-        return [0, Math.max(Math.max(...data.map(d => d.value)) * 1.2, 5)];
+        const maxU1 = Math.max(...validValues);
+        // Make sure we have a reasonable upper bound - between 1.5x max and 5%
+        return [0, Math.max(maxU1 * 1.5, 5)];
       case 'emratio':
         // For employment-population ratio, we want to emphasize changes
-        // so set a narrower range around the data
-        const values = data.map(d => d.value);
-        const min = Math.min(...values);
-        const max = Math.max(...values);
-        const buffer = (max - min) * 0.3;
-        return [Math.max(min - buffer, 0), Math.min(max + buffer, 100)];
+        // But also maintain a reasonable context (e.g., show from 50% not from 0)
+        const minEm = Math.min(...validValues);
+        const maxEm = Math.max(...validValues);
+        // Use a narrower range to emphasize changes
+        // For employment ratio, a 5 percentage point change is significant
+        return [Math.max(minEm - 5, 50), Math.min(maxEm + 5, 70)];
       default:
         return ['auto', 'auto'];
     }
@@ -372,13 +426,19 @@ export function UnemploymentDataChart({ startDate, endDate, data: chartData }: U
   
   // Helper function to format Y-axis ticks based on data type
   const getYAxisTickFormatter = (value: number) => {
+    if (value === null || value === undefined || isNaN(value)) {
+      return ''; // Return empty string for invalid values
+    }
+    
     switch(dataType) {
       case 'unemploy':
-        // Format as thousands with commas
-        return value.toLocaleString();
+        // Format in thousands (K) or millions (M) depending on scale
+        return value >= 1000 ? `${(value/1000).toFixed(1)}M` : value.toFixed(0);
       case 'u1rate':
+        // Format with 1 decimal for small percentages
+        return `${value.toFixed(1)}%`;
       case 'emratio':
-        // Format as percentage with 1 decimal place
+        // Format with 1 decimal for percentages
         return `${value.toFixed(1)}%`;
       default:
         return value.toString();
@@ -463,7 +523,7 @@ export function UnemploymentDataChart({ startDate, endDate, data: chartData }: U
                   color: "hsl(var(--chart-2))",
                 },
                 maValue: {
-                  label: "50-day MA",
+                  label: `${dataType === 'unemploy' ? '24' : '12'}-month MA`,
                   color: "hsl(var(--foreground))",
                 },
               }}
@@ -488,10 +548,14 @@ export function UnemploymentDataChart({ startDate, endDate, data: chartData }: U
                     }}
                   />
                   <YAxis
-                    tickLine={false}
-                    axisLine={false}
                     domain={getYAxisDomain()}
-                    tickFormatter={(value) => getYAxisTickFormatter(value)}
+                    orientation="right"
+                    tickFormatter={getYAxisTickFormatter}
+                    width={80}
+                    tickCount={7}
+                    tick={{ fontSize: 12 }}
+                    allowDataOverflow={false}
+                    allowDecimals={dataType !== 'unemploy'}
                   />
                   <ChartTooltip
                     content={
