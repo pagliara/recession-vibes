@@ -369,9 +369,7 @@ export function YieldCurveChart({
     setTransitionPoints(uniqueTransitions);
   }, [filteredData])
 
-  // Convert string dates from props to numeric timestamps for the domain
-  const numericStartDate = startDate ? new Date(startDate).getTime() : undefined;
-  
+
   return (
     <section className="pb-6 border-b">
       <ChartHeader
