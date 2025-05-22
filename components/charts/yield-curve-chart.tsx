@@ -377,15 +377,13 @@ export function YieldCurveChart({
         description={spreadType === 'T10Y2Y' 
           ? "The difference between 10-year and 2-year Treasury yields" 
           : "The difference between 10-year and 3-month Treasury yields"}
-        value={currentSpread}
-        previousValue={previousSpread}
-        riskLevel={isInverted ? "high" : isWorsening ? "medium" : "low"}
-        loading={loading}
-        error={error}
-        valueSuffix="%"
-        valueDecimals={2}
-        customValueColor={isInverted ? "text-destructive" : undefined}
-        citations={[1, 2, 5]}
+          value={daysSinceLastTransition ?? 0}
+          riskLevel={daysSinceLastTransition !== null && daysSinceLastTransition > 0 ? 'high' : 'low'}
+          loading={loading}
+          error={error}
+          valueSuffix=" days"
+          valueDecimals={0}
+          citations={[1, 2, 5]}
       >
         <div className="mt-2">
           <RadioGroup
@@ -533,43 +531,12 @@ export function YieldCurveChart({
       <div className="mt-4">
         {averageDaysToRecession && (
           <div className="flex align-start gap-2 mb-2">
-            <Info className="h-5 w-5 mt-0.5 text-muted-foreground" />
-            <div>
-              <p className="text-sm text-muted-foreground">
-                Historically, when the {spreadType === 'T10Y2Y' ? '10Y-2Y' : '10Y-3M'} yield curve transitions from inverted (negative) to positive, a recession has followed within an average of <span className="font-medium">{averageDaysToRecession} days</span>.
-              </p>
-              
-              {daysSinceLastTransition !== null && (
-                <div className="mt-2">
-                  <p className="text-sm font-medium">
-                    {daysSinceLastTransition} days have passed since the last transition.
-                  </p>
-                  
-                  {recessionRiskPercent !== null && (
-                    <div className="mt-1">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium">
-                          Recession risk: {recessionRiskPercent}%
-                        </p>
-                        <div className="w-32 h-2 bg-gray-200 rounded-full">
-                          <div 
-                            className={`h-2 rounded-full ${recessionRiskPercent >= 80 ? 'bg-red-500' : recessionRiskPercent >= 50 ? 'bg-amber-500' : 'bg-green-500'}`} 
-                            style={{ width: `${recessionRiskPercent}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {recessionRiskPercent >= 80 
-                          ? "High risk: We've passed the historical average time between transition and recession."
-                          : recessionRiskPercent >= 50
-                          ? "Medium risk: We're approaching the historical average time before a recession."
-                          : "Low risk: We're still well below the historical average time before a recession."}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            <Info className="h-8 w-8 text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
+            Historically, when the {spreadType === 'T10Y2Y' ? '10Y-2Y' : '10Y-3M'} yield curve transitions from negative to positive, 
+            a recession has followed in an average of {averageDaysToRecession} days (approximately {Math.round(averageDaysToRecession/30)} months).
+            The circular markers on the chart indicate these transition points.
+          </p>
           </div>
         )}
       </div>
