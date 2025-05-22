@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { Line, CartesianGrid, ComposedChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts"
 import { createResponsiveXAxis, createResponsiveYAxis } from "@/components/charts/utils/axis-config"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Info, Loader2 } from "lucide-react"
 import { renderRecessionReferenceAreas } from "@/components/charts/overlays/recession/recession-overlay"
+import { NasdaqDataPoint, filterNasdaqData, renderNasdaqOverlay } from "@/components/charts/overlays/nasdaq/nasdaq-overlay"
 import { ChartHeader } from "@/components/ui/chart-header"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label as UILabel } from "@/components/ui/label"
@@ -28,9 +29,20 @@ interface UnemploymentDataChartProps {
     u1rate: { date: string; value: number }[]
     emratio: { date: string; value: number }[]
   }
+  nasdaqData?: NasdaqDataPoint[]
+  overlayOptions: {
+    showRecessions: boolean
+    showNasdaq: boolean
+  }
 }
 
-export function UnemploymentDataChart({ startDate, endDate, data: chartData }: UnemploymentDataChartProps) {
+export function UnemploymentDataChart({ 
+  startDate, 
+  endDate, 
+  data: chartData,
+  nasdaqData = [],
+  overlayOptions
+}: UnemploymentDataChartProps) {
   // State for which data series to display
   const [dataType, setDataType] = useState<UnemploymentDataType>('unemploy')
   const [isMobile, setIsMobile] = useState(false)
@@ -48,6 +60,12 @@ export function UnemploymentDataChart({ startDate, endDate, data: chartData }: U
   const [filteredMALine, setFilteredMALine] = useState<MADataPoint[]>([])
   // State for risk assessment
   const [riskLevel, setRiskLevel] = useState<"low" | "medium" | "high">("medium")
+  
+  // Process NASDAQ data with useMemo
+  const processedNasdaqData = useMemo(() => {
+    return filterNasdaqData(nasdaqData, startDate, endDate);
+  }, [nasdaqData, startDate, endDate]);
+  
   // State for current vs. average comparison
   const [currentVsMA, setCurrentVsMA] = useState<{
     current: number | null;
@@ -596,6 +614,18 @@ export function UnemploymentDataChart({ startDate, endDate, data: chartData }: U
                       labelOffset: -40 // Increased offset to prevent label clipping
                     })}
                   />
+                  
+                  {/* Right YAxis for NASDAQ data */}
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    domain={['dataMin', 'dataMax']}
+                    hide={!overlayOptions.showNasdaq}
+                    tickLine={overlayOptions.showNasdaq}
+                    axisLine={overlayOptions.showNasdaq}
+                    tickFormatter={(value) => value.toLocaleString()}
+                  />
+                  
                   <ChartTooltip
                     content={
                       <ChartTooltipContent
@@ -660,6 +690,9 @@ export function UnemploymentDataChart({ startDate, endDate, data: chartData }: U
                     activeDot={{ r: 5, strokeWidth: 1 }}
                     connectNulls={true}
                   />
+                  
+                  {/* NASDAQ Overlay */}
+                  {renderNasdaqOverlay(processedNasdaqData, overlayOptions.showNasdaq, isMobile)}
                   
                   {renderRecessionReferenceAreas()} {/* Use recession overlay */}
                 </ComposedChart>

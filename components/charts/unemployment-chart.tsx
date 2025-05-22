@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react"
 import { Line, CartesianGrid, ComposedChart, ReferenceArea, ResponsiveContainer, XAxis, YAxis, Label } from "recharts"
 import { Badge } from "@/components/ui/badge"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Info, TrendingDown, TrendingUp } from "lucide-react"
 import { renderRecessionReferenceAreas } from "@/components/charts/overlays/recession/recession-overlay";
+import { NasdaqDataPoint, filterNasdaqData, renderNasdaqOverlay } from "@/components/charts/overlays/nasdaq/nasdaq-overlay";
 
 // Mock weekly data for unemployment claims with proper date format
 const rawUnemploymentData = [
@@ -41,11 +42,28 @@ interface UnemploymentDataPoint {
 interface UnemploymentChartProps {
   startDate?: string;
   endDate?: string;
+  data: { date: string; claims: number, trend: number }[];
+  nasdaqData?: { date: string; value: number }[];
+  overlayOptions?: {
+    showRecessions: boolean;
+    showNasdaq: boolean;
+  }
 }
 
-export function UnemploymentChart({ startDate, endDate }: UnemploymentChartProps) {
+export function UnemploymentChart({ 
+  startDate, 
+  endDate, 
+  data, 
+  nasdaqData,
+  overlayOptions = { showRecessions: true, showNasdaq: false } 
+}: UnemploymentChartProps) {
   const [processedData, setProcessedData] = useState<UnemploymentDataPoint[]>([]);
   const [isMobile, setIsMobile] = useState(false);
+  
+  // Process NASDAQ data with useMemo
+  const processedNasdaqData = useMemo(() => {
+    return filterNasdaqData(nasdaqData, startDate, endDate);
+  }, [nasdaqData, startDate, endDate]);
   
   // Check for mobile screen size
   useEffect(() => {
@@ -143,7 +161,8 @@ export function UnemploymentChart({ startDate, endDate }: UnemploymentChartProps
                   const date = new Date(value);
                   return `${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`; // Format as MM/DD
               }} />
-              <YAxis 
+              <YAxis
+                yAxisId="left"
                 tickLine={false} 
                 axisLine={false} 
                 domain={["dataMin - 20", "dataMax + 20"]} 
@@ -164,6 +183,18 @@ export function UnemploymentChart({ startDate, endDate }: UnemploymentChartProps
                   />
                 )}
               </YAxis>
+              
+              {/* Right YAxis for NASDAQ data */}
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                domain={['dataMin', 'dataMax']}
+                hide={!overlayOptions.showNasdaq}
+                tickLine={overlayOptions.showNasdaq}
+                axisLine={overlayOptions.showNasdaq}
+                tickFormatter={(value) => value.toLocaleString()}
+              />
+              
               <ChartTooltip 
                 content={
                   <ChartTooltipContent 
@@ -181,11 +212,16 @@ export function UnemploymentChart({ startDate, endDate }: UnemploymentChartProps
                   />
                 } 
               />
-              {renderRecessionReferenceAreas()}
-              <Line type="monotone" dataKey="claims" stroke="hsl(var(--chart-2))" strokeWidth={3} dot={true} />
+              {/* NASDAQ Overlay */}
+              {renderNasdaqOverlay(processedNasdaqData, overlayOptions.showNasdaq, isMobile)}
+              
+              {/* Recession overlay */}
+              {overlayOptions.showRecessions && renderRecessionReferenceAreas()}
+              <Line type="monotone" dataKey="claims" yAxisId="left" stroke="hsl(var(--chart-2))" strokeWidth={3} dot={true} />
               <Line
                 type="monotone"
                 dataKey="trend"
+                yAxisId="left"
                 stroke="hsl(var(--chart-4))"
                 strokeWidth={2}
                 strokeDasharray="5 5"

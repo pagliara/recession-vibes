@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Line, CartesianGrid, ComposedChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
 import { createResponsiveXAxis, createResponsiveYAxis } from "@/components/charts/utils/axis-config"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
@@ -8,6 +8,7 @@ import { Info, Loader2 } from "lucide-react"
 import { renderRecessionReferenceAreas } from "@/components/charts/overlays/recession/recession-overlay"
 import { ChartHeader } from "@/components/ui/chart-header"
 import { useMovingAverage, MADataPoint } from "@/hooks/use-moving-average"
+import { NasdaqDataPoint, filterNasdaqData, renderNasdaqOverlay } from "@/components/charts/overlays/nasdaq/nasdaq-overlay"
 
 // Define the data structures for our chart data
 type HousingPermitsDataPoint = {
@@ -39,9 +40,20 @@ interface HousingPermitsChartProps {
   startDate?: string
   endDate?: string
   data: { date: string; value: number }[]
+  nasdaqData?: { date: string; value: number }[]
+  overlayOptions?: {
+    showRecessions: boolean
+    showNasdaq: boolean
+  }
 }
 
-export function HousingPermitsChart({ startDate, endDate, data: chartData }: HousingPermitsChartProps) {
+export function HousingPermitsChart({ 
+  startDate, 
+  endDate, 
+  data: chartData,
+  nasdaqData,
+  overlayOptions = { showRecessions: true, showNasdaq: false }
+}: HousingPermitsChartProps) {
   // State for filtered data (what's displayed in the chart)
   const [data, setData] = useState<HousingPermitsDataPoint[]>([])
   // State for the complete dataset
@@ -49,6 +61,11 @@ export function HousingPermitsChart({ startDate, endDate, data: chartData }: Hou
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isMobile, setIsMobile] = useState(false)
+  
+  // Process NASDAQ data with useMemo
+  const processedNasdaqData = useMemo(() => {
+    return filterNasdaqData(nasdaqData, startDate, endDate);
+  }, [nasdaqData, startDate, endDate]);
   
   // State for moving average data
   const [movingAverageData, setMovingAverageData] = useState<MADataPoint[]>([])
@@ -271,15 +288,23 @@ export function HousingPermitsChart({ startDate, endDate, data: chartData }: Hou
                     })}
                   />
                   <YAxis 
+                    yAxisId="left"
                     allowDecimals={false}
                     tickFormatter={(value: number) => (value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toString())}
                     {...createResponsiveYAxis({
                       isMobile,
-                      axisLabel: "Housing Permits (thousands)", 
-                      domain: ['auto', 'dataMax + 200'], // Set explicit domain for housing permits data
+                      axisLabel: "Housing Permits (1000s)"
                     })}
                   />
-                  
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    domain={['dataMin', 'dataMax']}
+                    hide={!overlayOptions.showNasdaq}
+                    tickLine={overlayOptions.showNasdaq}
+                    axisLine={overlayOptions.showNasdaq}
+                    tickFormatter={(value) => value.toLocaleString()}
+                  />
                   <ChartTooltip
                     content={
                       <ChartTooltipContent
@@ -303,6 +328,7 @@ export function HousingPermitsChart({ startDate, endDate, data: chartData }: Hou
                     type="monotone"
                     data={filteredMALine}
                     dataKey="maValue" // Using a different dataKey to avoid conflicts
+                    yAxisId="left"
                     name="50-day MA"
                     stroke="hsl(var(--foreground))"
                     strokeWidth={1.5}
@@ -317,6 +343,7 @@ export function HousingPermitsChart({ startDate, endDate, data: chartData }: Hou
                   <Line
                     type="monotone"
                     dataKey="value"
+                    yAxisId="left"
                     name="Housing Permits"
                     stroke={riskLevel === "high" ? "rgb(220, 38, 38)" : riskLevel === "medium" ? "rgb(202, 138, 4)" : "rgb(22, 163, 74)"}
                     strokeWidth={2}
@@ -344,7 +371,11 @@ export function HousingPermitsChart({ startDate, endDate, data: chartData }: Hou
                     activeDot={{ r: 5, strokeWidth: 1 }}
                     connectNulls={true}
                   />
-                  {renderRecessionReferenceAreas()} {/* Use the recession overlay */}
+                  {/* NASDAQ Overlay */}
+                  {renderNasdaqOverlay(processedNasdaqData, overlayOptions.showNasdaq, isMobile)}
+                  
+                  {/* Recession overlay */}
+                  {overlayOptions.showRecessions && renderRecessionReferenceAreas()}
                 </ComposedChart>
             </ChartContainer>
           </div>

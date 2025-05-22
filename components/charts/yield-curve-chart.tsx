@@ -1,15 +1,17 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Area, CartesianGrid, ComposedChart, ReferenceArea, ResponsiveContainer, ReferenceDot, XAxis, YAxis } from "recharts"
+import { useEffect, useMemo, useState } from "react"
+import { Area, CartesianGrid, ComposedChart, Legend, Line, ReferenceArea, ResponsiveContainer, ReferenceDot, XAxis, YAxis, Label, Rectangle, Tooltip } from "recharts"
+import { historicalRecessionPeriods, RecessionPeriod } from "@/components/charts/overlays/recession/recession-periods"
+import { renderRecessionReferenceAreas } from "@/components/charts/overlays/recession/recession-overlay"
+import { NasdaqDataPoint, filterNasdaqData, renderNasdaqOverlay } from "@/components/charts/overlays/nasdaq/nasdaq-overlay"
 import { createResponsiveXAxis, createResponsiveYAxis } from "@/components/charts/utils/axis-config"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
-import { Info, Loader2 } from "lucide-react"
-import { historicalRecessionPeriods } from "@/components/charts/overlays/recession/recession-periods"; 
-import { renderRecessionReferenceAreas } from "@/components/charts/overlays/recession/recession-overlay"; 
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Label as UILabel } from "@/components/ui/label"
 import { ChartHeader } from "@/components/ui/chart-header"
+import { format, parseISO } from "date-fns"
+import { Info, Loader2 } from "lucide-react"
+import { Label as UILabel } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
 // Define the data structure for the yield curve data
 type YieldCurveDataPoint = {
@@ -51,11 +53,43 @@ interface YieldCurveChartProps {
     t10y2y: { date: string; spread: number }[]
     t10y3m: { date: string; spread: number }[]
   }
+  nasdaqData?: { date: string; value: number }[]
+  overlayOptions?: {
+    showRecessions: boolean
+    showNasdaq: boolean
+  }
 }
 
-export function YieldCurveChart({ startDate, endDate, data: chartData }: YieldCurveChartProps) {
+export function YieldCurveChart({ 
+  startDate, 
+  endDate, 
+  data: chartData, 
+  nasdaqData,
+  overlayOptions = { showRecessions: true, showNasdaq: false }
+}: YieldCurveChartProps) {
   // State for filtered data (what's displayed in the chart)
   const [filteredData, setFilteredData] = useState<YieldCurveDataPoint[]>([])
+  // Convert string dates from props to numeric timestamps for the domain
+  const numericStartDate = startDate ? new Date(startDate).getTime() : undefined;
+  const numericEndDate = endDate ? new Date(endDate).getTime() : undefined;
+  
+  // Process NASDAQ data with useMemo
+  const processedNasdaqData = useMemo(() => {
+    console.log('YieldCurveChart: Processing NASDAQ data', { 
+      hasNasdaqData: !!nasdaqData, 
+      nasdaqDataLength: nasdaqData?.length || 0,
+      startDate,
+      endDate,
+      showNasdaq: overlayOptions.showNasdaq
+    });
+    const filtered = filterNasdaqData(nasdaqData, startDate, endDate);
+    console.log('YieldCurveChart: Filtered NASDAQ data', { 
+      length: filtered.length,
+      firstItem: filtered[0],
+      lastItem: filtered.length ? filtered[filtered.length-1] : null
+    });
+    return filtered;
+  }, [nasdaqData, startDate, endDate, overlayOptions.showNasdaq]);
   // State for the complete dataset (used for historical analysis)
   const [fullDataset, setFullDataset] = useState<{
     t10y2y: YieldCurveDataPoint[],
@@ -131,6 +165,12 @@ export function YieldCurveChart({ startDate, endDate, data: chartData }: YieldCu
       setLoading(false)
     }
   }, [chartData]) // Re-process when chartData changes
+
+  // Log NASDAQ data for debugging
+  useEffect(() => {
+    if (!nasdaqData) return;
+    console.log("NASDAQ data available:", nasdaqData.length, "data points");
+  }, [nasdaqData]); // Re-process when data or date range changes
 
   // Filter data by date range and handle transition points calculation
   useEffect(() => {
@@ -420,6 +460,7 @@ export function YieldCurveChart({ startDate, endDate, data: chartData }: YieldCu
                 })}
               />
               <YAxis
+                yAxisId="left"
                 {...createResponsiveYAxis({
                   isMobile,
                   tickFormatter: (value: number) => `${value.toFixed(2)}%`,
@@ -429,7 +470,7 @@ export function YieldCurveChart({ startDate, endDate, data: chartData }: YieldCu
               <ChartTooltip
                 content={
                   <ChartTooltipContent
-                    labelFormatter={(timestamp) => {
+                    labelFormatter={(timestamp: number | string) => {
                       if (typeof timestamp === 'number') {
                         const date = new Date(timestamp);
                         return date.toLocaleDateString(undefined, {
@@ -444,16 +485,19 @@ export function YieldCurveChart({ startDate, endDate, data: chartData }: YieldCu
                 }
               />
               
-              {renderRecessionReferenceAreas()} {/* Call the function to render areas */}
               <Area
                 type="monotone"
                 dataKey="spread"
+                yAxisId="left"
                 stroke={currentSpread < 0 ? "var(--color-spread)" : "var(--color-spread)"}
                 strokeWidth={3}
                 fillOpacity={1}
                 fill="url(#colorSpread)"
                 connectNulls={true}
+                name="Yield Curve Spread"
               />
+              
+              {/* NASDAQ Overlay is now added via renderNasdaqOverlay function below */}
               
               {/* Add circular markers at transition points with tooltips */}
               {transitionPoints
@@ -468,6 +512,7 @@ export function YieldCurveChart({ startDate, endDate, data: chartData }: YieldCu
                     key={`transition-${idx}`}
                     x={filteredData[point.index].date}
                     y={filteredData[point.index].spread}
+                    yAxisId="left"
                     r={6}
                     fill="hsl(var(--primary))"
                     stroke="white"
@@ -476,6 +521,11 @@ export function YieldCurveChart({ startDate, endDate, data: chartData }: YieldCu
                   />
                 ))}
              
+              <Legend verticalAlign="top" height={36} />
+              {/* Add NASDAQ overlay components if enabled */}
+              {renderNasdaqOverlay(processedNasdaqData, overlayOptions.showNasdaq, isMobile)}
+              {/* Add recession overlay components if enabled */}
+              {overlayOptions.showRecessions && renderRecessionReferenceAreas()}
             </ComposedChart>
         </ChartContainer>
         </div>
@@ -485,12 +535,43 @@ export function YieldCurveChart({ startDate, endDate, data: chartData }: YieldCu
       <div className="mt-4">
         {averageDaysToRecession && (
           <div className="flex align-start gap-2 mb-2">
-            <Info className="h-8 w-8 text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
-            Historically, when the {spreadType === 'T10Y2Y' ? '10Y-2Y' : '10Y-3M'} yield curve transitions from negative to positive, 
-            a recession has followed in an average of {averageDaysToRecession} days (approximately {Math.round(averageDaysToRecession/30)} months).
-            The circular markers on the chart indicate these transition points.
-          </p>
+            <Info className="h-5 w-5 mt-0.5 text-muted-foreground" />
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Historically, when the {spreadType === 'T10Y2Y' ? '10Y-2Y' : '10Y-3M'} yield curve transitions from inverted (negative) to positive, a recession has followed within an average of <span className="font-medium">{averageDaysToRecession} days</span>.
+              </p>
+              
+              {daysSinceLastTransition !== null && (
+                <div className="mt-2">
+                  <p className="text-sm font-medium">
+                    {daysSinceLastTransition} days have passed since the last transition.
+                  </p>
+                  
+                  {recessionRiskPercent !== null && (
+                    <div className="mt-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium">
+                          Recession risk: {recessionRiskPercent}%
+                        </p>
+                        <div className="w-32 h-2 bg-gray-200 rounded-full">
+                          <div 
+                            className={`h-2 rounded-full ${recessionRiskPercent >= 80 ? 'bg-red-500' : recessionRiskPercent >= 50 ? 'bg-amber-500' : 'bg-green-500'}`} 
+                            style={{ width: `${recessionRiskPercent}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {recessionRiskPercent >= 80 
+                          ? "High risk: We've passed the historical average time between transition and recession."
+                          : recessionRiskPercent >= 50
+                          ? "Medium risk: We're approaching the historical average time before a recession."
+                          : "Low risk: We're still well below the historical average time before a recession."}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

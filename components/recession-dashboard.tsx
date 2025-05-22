@@ -8,6 +8,7 @@ import { UnemploymentDataChart } from "@/components/charts/unemployment-data/une
 import { RecessionProbabilityGauge } from "@/components/recession-probability-gauge"
 import { LatestBlogPost } from "@/components/latest-blog-post"
 import { DateRangeSelector } from "@/components/date-range-selector"
+import { OverlaySelector, OverlayOptions } from "@/components/overlay-selector"
 import { calculateRecessionProbability } from "@/lib/calculate-recession-probability"
 import { Footer } from "@/components/layout/footer"
 
@@ -23,13 +24,15 @@ interface RecessionDashboardProps {
     u1rate: { date: string; value: number }[]
     emratio: { date: string; value: number }[]
   }
+  nasdaqData: { date: string; value: number }[]
 }
 
 export default function RecessionDashboard({ 
   yieldCurveData, 
   consumerSentimentData, 
   housingPermitsData,
-  unemploymentData 
+  unemploymentData,
+  nasdaqData 
 }: RecessionDashboardProps) {
   // State for date range
   const [dateRange, setDateRange] = useState({
@@ -40,10 +43,21 @@ export default function RecessionDashboard({
     })(),
     endDate: new Date().toISOString().split('T')[0],
   })
+  
+  // State for chart overlay options
+  const [overlayOptions, setOverlayOptions] = useState<OverlayOptions>({
+    showRecessions: true,
+    showNasdaq: false
+  })
 
   // Handle date range changes
   const handleDateRangeChange = (range: { startDate: string; endDate: string }) => {
     setDateRange(range)
+  }
+  
+  // Handle overlay changes
+  const handleOverlayChange = (options: OverlayOptions) => {
+    setOverlayOptions(options)
   }
   
   // Calculate the recession probability
@@ -60,13 +74,19 @@ export default function RecessionDashboard({
         </div>
       </div>
 
-      {/* Sticky date range selector */}
-      <div className="sticky top-0 py-2 z-50">
-        <DateRangeSelector 
-          onDateRangeChange={handleDateRangeChange}
-          startDate={dateRange.startDate}
-          endDate={dateRange.endDate}
-        />
+      {/* Sticky controls bar with date range and overlay selectors */}
+      <div className="sticky top-0 py-2 z-50 bg-background/80 backdrop-blur-sm">
+        <div className="flex justify-end gap-2 items-center mb-4">
+          <OverlaySelector 
+            defaultOptions={overlayOptions}
+            onOverlayChange={handleOverlayChange}
+          />
+          <DateRangeSelector 
+            onDateRangeChange={handleDateRangeChange}
+            startDate={dateRange.startDate}
+            endDate={dateRange.endDate}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-8">
@@ -74,21 +94,29 @@ export default function RecessionDashboard({
           startDate={dateRange.startDate} 
           endDate={dateRange.endDate}
           data={yieldCurveData}
+          nasdaqData={nasdaqData}
+          overlayOptions={overlayOptions}
         />
         <ConsumerSentimentChart 
           startDate={dateRange.startDate} 
           endDate={dateRange.endDate}
           data={consumerSentimentData}
+          nasdaqData={nasdaqData}
+          overlayOptions={overlayOptions}
         />
         <HousingPermitsChart 
           startDate={dateRange.startDate} 
           endDate={dateRange.endDate}
           data={housingPermitsData}
+          nasdaqData={nasdaqData}
+          overlayOptions={overlayOptions}
         />
         <UnemploymentDataChart 
           startDate={dateRange.startDate} 
           endDate={dateRange.endDate}
           data={unemploymentData}
+          nasdaqData={nasdaqData}
+          overlayOptions={overlayOptions}
         />
       </div>
 

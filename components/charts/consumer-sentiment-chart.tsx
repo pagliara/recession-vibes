@@ -1,12 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Line, CartesianGrid, ComposedChart, ReferenceArea, ResponsiveContainer, XAxis, YAxis } from "recharts"
 import { createResponsiveXAxis, createResponsiveYAxis } from "@/components/charts/utils/axis-config"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Info, Loader2 } from "lucide-react"
 import { historicalRecessionPeriods } from "@/components/charts/overlays/recession/recession-periods"
 import { renderRecessionReferenceAreas } from "@/components/charts/overlays/recession/recession-overlay"
+import { NasdaqDataPoint, filterNasdaqData, renderNasdaqOverlay } from "@/components/charts/overlays/nasdaq/nasdaq-overlay"
 import { ChartHeader } from "@/components/ui/chart-header"
 import { useMovingAverage, MADataPoint } from "@/hooks/use-moving-average"
 
@@ -40,9 +41,20 @@ interface ConsumerSentimentChartProps {
   startDate?: string
   endDate?: string
   data: { date: string; value: number }[]
+  nasdaqData?: { date: string; value: number }[]
+  overlayOptions?: {
+    showRecessions: boolean
+    showNasdaq: boolean
+  }
 }
 
-export function ConsumerSentimentChart({ startDate, endDate, data: chartData }: ConsumerSentimentChartProps) {
+export function ConsumerSentimentChart({ 
+  startDate, 
+  endDate, 
+  data: chartData,
+  nasdaqData,
+  overlayOptions = { showRecessions: true, showNasdaq: false }
+}: ConsumerSentimentChartProps) {
   // State for filtered data (what's displayed in the chart)
   const [data, setData] = useState<ConsumerSentimentDataPoint[]>([])
   // State for the complete dataset
@@ -50,6 +62,11 @@ export function ConsumerSentimentChart({ startDate, endDate, data: chartData }: 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isMobile, setIsMobile] = useState(false)
+  
+  // Process NASDAQ data with useMemo
+  const processedNasdaqData = useMemo(() => {
+    return filterNasdaqData(nasdaqData, startDate, endDate);
+  }, [nasdaqData, startDate, endDate])
 
   // Helper function to convert date strings to timestamps
   const parseData = (rawData: { date: string; value: number }[]) => {
@@ -232,11 +249,20 @@ export function ConsumerSentimentChart({ startDate, endDate, data: chartData }: 
                   })}
                 />
                 <YAxis 
+                  yAxisId="left"
                   {...createResponsiveYAxis({
                     isMobile,
-                    axisLabel: "Consumer Sentiment Index",
-                    domain: [0, 'auto'],
+                    axisLabel: "Consumer Sentiment Index"
                   })}
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  domain={['dataMin', 'dataMax']}
+                  hide={!overlayOptions.showNasdaq}
+                  tickLine={overlayOptions.showNasdaq}
+                  axisLine={overlayOptions.showNasdaq}
+                  tickFormatter={(value) => value.toLocaleString()}
                 />
                 <ChartTooltip
                   content={
@@ -261,6 +287,7 @@ export function ConsumerSentimentChart({ startDate, endDate, data: chartData }: 
                   data={filteredMALine}
                   type="monotone"
                   dataKey="maValue" // Using a different dataKey to avoid conflicts
+                  yAxisId="left"
                   name="50-day MA"
                   stroke="hsl(var(--foreground))"
                   strokeWidth={1.5}
@@ -275,6 +302,7 @@ export function ConsumerSentimentChart({ startDate, endDate, data: chartData }: 
                 <Line
                   type="monotone"
                   dataKey="value"
+                  yAxisId="left"
                   name="Consumer Sentiment"
                   stroke={riskLevel === "high" ? "rgb(220, 38, 38)" : riskLevel === "medium" ? "rgb(202, 138, 4)" : "rgb(22, 163, 74)"}
                   strokeWidth={2}
@@ -302,7 +330,11 @@ export function ConsumerSentimentChart({ startDate, endDate, data: chartData }: 
                   activeDot={{ r: 5, strokeWidth: 1 }}
                   connectNulls={true}
                 />
-                {renderRecessionReferenceAreas()} {/* Use the same recession overlay as yield curve */}
+                  {/* NASDAQ Overlay */}
+                  {renderNasdaqOverlay(processedNasdaqData, overlayOptions.showNasdaq, isMobile)}
+                
+                {/* Recession overlay */}
+                {overlayOptions.showRecessions && renderRecessionReferenceAreas()}
               </ComposedChart>  
           </ChartContainer>
         </div>
