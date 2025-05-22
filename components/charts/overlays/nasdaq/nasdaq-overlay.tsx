@@ -25,8 +25,7 @@ export function renderNasdaqOverlay(
   
   const components: React.ReactNode[] = []
   
-  // NASDAQ Y-Axis - Only show on non-mobile screens
-  if (!isMobile) {
+  // NASDAQ Y-Axis 
     components.push(
       <YAxis
         key="nasdaq-axis"
@@ -36,11 +35,12 @@ export function renderNasdaqOverlay(
         tickLine={true}
         axisLine={true}
         tickFormatter={(value) => value.toLocaleString()}
+        hide={isMobile}
         label={{
           value: "NASDAQ Index",
           angle: 90,
           position: "right",
-          offset: 0,
+          offset: 4,
           fill: color,
           fontSize: 12,
         }}
@@ -50,7 +50,6 @@ export function renderNasdaqOverlay(
         }}
       />
     )
-  }
   
   // NASDAQ Line Chart
   components.push(
