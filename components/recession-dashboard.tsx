@@ -75,17 +75,19 @@ export default function RecessionDashboard({
       </div>
 
       {/* Sticky controls bar with date range and overlay selectors */}
-      <div className="sticky top-0 py-2 z-50 bg-background/80 backdrop-blur-sm">
-        <div className="flex justify-end gap-2 items-center mb-4">
-          <OverlaySelector 
-            defaultOptions={overlayOptions}
-            onOverlayChange={handleOverlayChange}
-          />
-          <DateRangeSelector 
-            onDateRangeChange={handleDateRangeChange}
-            startDate={dateRange.startDate}
-            endDate={dateRange.endDate}
-          />
+      <div className="sticky top-0 py-2 z-50">
+        <div className="flex justify-end gap-3 items-center mb-4">
+          <div className="flex items-center gap-2">
+            <DateRangeSelector 
+              onDateRangeChange={handleDateRangeChange}
+              startDate={dateRange.startDate}
+              endDate={dateRange.endDate}
+            />
+            <OverlaySelector 
+              defaultOptions={overlayOptions}
+              onOverlayChange={handleOverlayChange}
+            />
+          </div>
         </div>
       </div>
 

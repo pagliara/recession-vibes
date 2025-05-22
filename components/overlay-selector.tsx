@@ -40,7 +40,7 @@ export function OverlaySelector({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex items-center justify-center rounded-full p-2 px-3 bg-secondary text-secondary-foreground shadow-md hover:bg-secondary/90 transition-colors">
+      <DropdownMenuTrigger className="flex items-center justify-center rounded-full p-2 px-3 bg-primary text-primary-foreground shadow-md hover:bg-primary/90 transition-colors">
         <LayersIcon className="h-5 w-5 mr-2" />
         <span className="text-sm font-medium">Overlays</span>
       </DropdownMenuTrigger>
