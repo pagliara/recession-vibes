@@ -10,7 +10,8 @@ import { Label, ReferenceArea } from "recharts"
  */
 export function renderRecessionReferenceAreas(): React.ReactNode[] {
   return historicalRecessionPeriods.map((period, index) => {
-    const labelOffset = index % 2 === 0 ? 10 : 25; // Alternate offset
+    // Stagger labels at 3 different heights to prevent overlap
+    const labelOffset = index % 3 === 0 ? 10 : (index % 3 === 1 ? 25 : 40); // Three different heights
     return (
       <ReferenceArea
         key={`recession-${period.startDate}`}

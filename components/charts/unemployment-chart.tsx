@@ -187,17 +187,6 @@ export function UnemploymentChart({
                 )}
               </YAxis>
               
-              {/* Right YAxis for NASDAQ data */}
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                domain={['dataMin', 'dataMax']}
-                hide={!overlayOptions.showNasdaq}
-                tickLine={overlayOptions.showNasdaq}
-                axisLine={overlayOptions.showNasdaq}
-                tickFormatter={(value) => value.toLocaleString()}
-              />
-              
               <ChartTooltip 
                 content={
                   <ChartTooltipContent 

@@ -176,11 +176,12 @@ export function HousingPermitsChart({
     
   }, [fullDataset, startDate, endDate, loading, movingAverageData]);
 
-  // Calculate the moving average using our custom hook
+  // Calculate moving average for trend analysis
   const { maLine, high, low, average } = useMovingAverage(fullDataset, {
-    windowSize: 50,
+    windowSize: 200, // This will be internally adjusted for monthly data
     valueKey: 'value',
-    useTimeBased: false // Use count-based window (50 points) rather than time-based
+    useTimeBased: true, // Use count-based window rather than time-based
+    dataFrequency: 'monthly' // Specify that this is monthly data
   });
   
   // Keep the moving average in state for use in other parts of the component

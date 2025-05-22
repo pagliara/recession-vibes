@@ -13,7 +13,8 @@ type DataPoint = {
 type MovingAverageOptions = {
   windowSize: number;
   valueKey?: string;
-  useTimeBased?: boolean; 
+  useTimeBased?: boolean;
+  dataFrequency?: 'daily' | 'weekly' | 'monthly'; // To handle different data frequencies
 };
 
 /**
@@ -30,8 +31,24 @@ export function useMovingAverage<T extends DataPoint>(
   const { 
     windowSize = 50, 
     valueKey = 'value',
-    useTimeBased = false
+    useTimeBased = false,
+    dataFrequency = 'daily'
   } = options;
+  
+  // Adjust window size based on data frequency for more meaningful calculations
+  const adjustedWindowSize = useMemo(() => {
+    if (useTimeBased) {
+      if (dataFrequency === 'monthly') {
+        // For monthly data, convert days to months (approximately)
+        return Math.max(2, Math.ceil(windowSize / 30));
+      } else if (dataFrequency === 'weekly') {
+        // For weekly data, convert days to weeks
+        return Math.max(2, Math.ceil(windowSize / 7));
+      }
+    }
+    // For daily data or time-based calculations, use the provided window size
+    return windowSize;
+  }, [windowSize, useTimeBased, dataFrequency]);
 
   const result = useMemo(() => {
     if (!data || data.length === 0) {
@@ -79,14 +96,14 @@ export function useMovingAverage<T extends DataPoint>(
         }
       });
     } else {
-      // Count-based moving average (e.g., 50 points)
+      // Count-based moving average with adjusted window size based on data frequency
       for (let i = 0; i < sortedData.length; i++) {
-        // Need at least windowSize points to calculate MA
-        if (i >= windowSize - 1) {
+        // Need at least adjustedWindowSize points to calculate MA
+        if (i >= adjustedWindowSize - 1) {
           let sum = 0;
           let validPoints = 0;
           
-          for (let j = 0; j < windowSize; j++) {
+          for (let j = 0; j < adjustedWindowSize; j++) {
             const value = sortedData[i - j][valueKey];
             if (value !== undefined && value !== null && !isNaN(value)) {
               sum += value;

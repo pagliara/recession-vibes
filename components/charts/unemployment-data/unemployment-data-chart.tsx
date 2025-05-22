@@ -126,7 +126,8 @@ export function UnemploymentDataChart({
     // Use a consistent 50-day moving average across all economic indicators
     windowSize: 50,
     valueKey: 'value',
-    useTimeBased: false // Use count-based window rather than time-based
+    useTimeBased: false, // Use count-based window rather than time-based
+    dataFrequency: 'monthly' // Specify that this is monthly data
   });
   
   // Update state when moving average data changes
