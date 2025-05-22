@@ -212,10 +212,11 @@ export function HousingPermitsChart({
         percentDifference: percentDiff
       });
       
-      // Determine risk level based on percent difference
-      if (percentDiff < -15) {
+      // Determine risk level based on percent difference from 200-day moving average
+      // Using wider thresholds for 200-day MA since it represents a longer-term trend
+      if (percentDiff < -10) {
         setRiskLevel("high");
-      } else if (percentDiff < -5) {
+      } else if (percentDiff < -3) {
         setRiskLevel("medium");
       } else {
         setRiskLevel("low");
@@ -326,7 +327,7 @@ export function HousingPermitsChart({
                     data={filteredMALine}
                     dataKey="maValue" // Using a different dataKey to avoid conflicts
                     yAxisId="left"
-                    name="50-day MA"
+                    name="200-day MA"
                     stroke="hsl(var(--foreground))"
                     strokeWidth={1.5}
                     strokeDasharray="5 5"
@@ -389,16 +390,16 @@ export function HousingPermitsChart({
             </p>
             <p className="text-sm text-muted-foreground mt-1">
               {riskLevel === "high"
-                ? "Housing permits have fallen significantly below the 50-day moving average, suggesting a substantial slowdown in future housing construction and possible economic contraction."
+                ? "Housing permits have fallen significantly below the 200-day moving average, suggesting a substantial slowdown in future housing construction and possible economic contraction."
                 : riskLevel === "medium"
-                  ? "Housing permits are moderately below the 50-day moving average, indicating some weakness in the housing sector."
-                  : "Housing permits remain robust relative to the 50-day moving average, suggesting continued strength in housing construction."}
+                  ? "Housing permits are moderately below the 200-day moving average, indicating some weakness in the housing sector."
+                  : "Housing permits remain robust relative to the 200-day moving average, suggesting continued strength in housing construction."}
             </p>
             {currentVsMA.percentDifference !== null && (
               <p className="text-sm font-medium mt-1">
                 Current value is {Math.abs(currentVsMA.percentDifference).toFixed(1)}% 
                 {currentVsMA.percentDifference >= 0 ? " above " : " below "} 
-                the 50-day moving average.
+                the 200-day moving average.
               </p>
             )}
           </div>

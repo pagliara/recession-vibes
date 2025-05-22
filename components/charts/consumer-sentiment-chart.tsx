@@ -1,15 +1,13 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Line, CartesianGrid, ComposedChart, ReferenceArea, ResponsiveContainer, XAxis, YAxis } from "recharts"
+import { Line, CartesianGrid, ComposedChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
 import { createResponsiveXAxis, createResponsiveYAxis } from "@/components/charts/utils/axis-config"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { Info, Loader2 } from "lucide-react"
-import { historicalRecessionPeriods } from "@/components/charts/overlays/recession/recession-periods"
 import { renderRecessionReferenceAreas } from "@/components/charts/overlays/recession/recession-overlay"
-import { NasdaqDataPoint, filterNasdaqData, renderNasdaqOverlay } from "@/components/charts/overlays/nasdaq/nasdaq-overlay"
+import { filterNasdaqData, renderNasdaqOverlay } from "@/components/charts/overlays/nasdaq/nasdaq-overlay"
 import { ChartHeader } from "@/components/ui/chart-header"
-import { useMovingAverage, MADataPoint } from "@/hooks/use-moving-average"
 
 // Define the data structures for our chart data
 type ConsumerSentimentDataPoint = {

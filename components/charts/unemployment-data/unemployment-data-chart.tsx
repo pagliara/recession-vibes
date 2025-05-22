@@ -124,9 +124,9 @@ export function UnemploymentDataChart({
   // Calculate moving averages with our custom hook
   const { maLine } = useMovingAverage(fullDataset, {
     // Use a consistent 50-day moving average across all economic indicators
-    windowSize: 50,
+    windowSize: 200,
     valueKey: 'value',
-    useTimeBased: false, // Use count-based window rather than time-based
+    useTimeBased: true, // Use count-based window rather than time-based
     dataFrequency: 'monthly' // Specify that this is monthly data
   });
   
@@ -648,12 +648,12 @@ export function UnemploymentDataChart({
                     }
                   />
                   
-                  {/* Add the 50-day moving average dotted line */}
+                  {/* Add the 200-day moving average dotted line */}
                   <Line
                     data={filteredMALine}
                     type="monotone"
                     dataKey="maValue" // Using a different dataKey to avoid conflicts
-                    name="50-day MA"
+                    name="200-day MA"
                     stroke="hsl(var(--foreground))"
                     strokeWidth={1.5}
                     strokeDasharray="5 5"
@@ -722,7 +722,7 @@ export function UnemploymentDataChart({
                   <p className="text-sm font-medium mt-1">
                     Current value is {Math.abs(currentVsMA.percentDifference).toFixed(1)}% 
                     {currentVsMA.percentDifference >= 0 ? " above " : " below "} 
-                    the 50-day moving average.
+                    the 200-day moving average.
                   </p>
                 )}
               </div>
