@@ -64,6 +64,9 @@ export function HousingPermitsChart({
   
   // Process NASDAQ data with useMemo
   const processedNasdaqData = useMemo(() => {
+    // Ensure we have valid NASDAQ data
+    if (!nasdaqData || nasdaqData.length === 0) return [];
+    
     return filterNasdaqData(nasdaqData, startDate, endDate);
   }, [nasdaqData, startDate, endDate]);
   
@@ -293,17 +296,10 @@ export function HousingPermitsChart({
                     tickFormatter={(value: number) => (value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toString())}
                     {...createResponsiveYAxis({
                       isMobile,
-                      axisLabel: "Housing Permits (1000s)"
+                      axisLabel: "Housing Permits (1000s)",
+                      domain: ['dataMin-200', 'dataMax+300'],
+                      
                     })}
-                  />
-                  <YAxis
-                    yAxisId="right"
-                    orientation="right"
-                    domain={['dataMin', 'dataMax']}
-                    hide={!overlayOptions.showNasdaq}
-                    tickLine={overlayOptions.showNasdaq}
-                    axisLine={overlayOptions.showNasdaq}
-                    tickFormatter={(value) => value.toLocaleString()}
                   />
                   <ChartTooltip
                     content={

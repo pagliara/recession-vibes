@@ -3,9 +3,11 @@
 import React from 'react'
 import { Line, YAxis } from 'recharts'
 
+// Support both old and new field names for backward compatibility
 export interface NasdaqDataPoint {
   date: string | number // Can be ISO string or timestamp
-  value: number
+  nasdaqValue?: number // New field name
+  value?: number       // Old field name for backward compatibility
 }
 
 /**
@@ -57,7 +59,7 @@ export function renderNasdaqOverlay(
       key="nasdaq-line"
       type="monotone"
       data={data}
-      dataKey="value"
+      dataKey="nasdaqValue"
       name="NASDAQ Index"
       yAxisId="right"
       stroke={color}
@@ -97,12 +99,22 @@ export function filterNasdaqData(
   const startTimestamp = startDate ? normalizeDate(startDate) : 0
   const endTimestamp = endDate ? normalizeDate(endDate) : Date.now()
 
-  return data.filter(item => {
-    const itemTimestamp = normalizeDate(item.date)
-    return itemTimestamp >= startTimestamp && itemTimestamp <= endTimestamp
-  }).map(item => ({
-    ...item,
-    // Ensure date is in timestamp format for consistency
-    date: typeof item.date === 'string' ? new Date(item.date).getTime() : item.date
-  }))
+  const filteredData = data
+    .filter(item => {
+      const itemTimestamp = normalizeDate(item.date)
+      return itemTimestamp >= startTimestamp && itemTimestamp <= endTimestamp
+    })
+    .map(item => {
+      // Ensure we have a valid value (either from nasdaqValue or value)
+      const value = item.nasdaqValue ?? item.value;
+      if (value === undefined) return null;
+      
+      return {
+        nasdaqValue: value,
+        date: typeof item.date === 'string' ? new Date(item.date).getTime() : item.date
+      };
+    })
+    .filter((item): item is { nasdaqValue: number; date: number } => item !== null);
+    
+  return filteredData;
 }

@@ -62,6 +62,9 @@ export function UnemploymentChart({
   
   // Process NASDAQ data with useMemo
   const processedNasdaqData = useMemo(() => {
+    // Ensure we have valid NASDAQ data
+    if (!nasdaqData || nasdaqData.length === 0) return [];
+    
     return filterNasdaqData(nasdaqData, startDate, endDate);
   }, [nasdaqData, startDate, endDate]);
   

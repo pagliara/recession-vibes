@@ -75,19 +75,11 @@ export function YieldCurveChart({
   
   // Process NASDAQ data with useMemo
   const processedNasdaqData = useMemo(() => {
-    console.log('YieldCurveChart: Processing NASDAQ data', { 
-      hasNasdaqData: !!nasdaqData, 
-      nasdaqDataLength: nasdaqData?.length || 0,
-      startDate,
-      endDate,
-      showNasdaq: overlayOptions.showNasdaq
-    });
+    // Ensure we have valid NASDAQ data
+    if (!nasdaqData || nasdaqData.length === 0) return [];
+    
     const filtered = filterNasdaqData(nasdaqData, startDate, endDate);
-    console.log('YieldCurveChart: Filtered NASDAQ data', { 
-      length: filtered.length,
-      firstItem: filtered[0],
-      lastItem: filtered.length ? filtered[filtered.length-1] : null
-    });
+    
     return filtered;
   }, [nasdaqData, startDate, endDate, overlayOptions.showNasdaq]);
   // State for the complete dataset (used for historical analysis)

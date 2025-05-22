@@ -65,6 +65,10 @@ export function ConsumerSentimentChart({
   
   // Process NASDAQ data with useMemo
   const processedNasdaqData = useMemo(() => {
+    // Ensure we have valid NASDAQ data
+    if (!nasdaqData || nasdaqData.length === 0) return [];
+    
+    // Filter and transform the data to ensure it has the correct structure
     return filterNasdaqData(nasdaqData, startDate, endDate);
   }, [nasdaqData, startDate, endDate])
 
@@ -144,39 +148,32 @@ export function ConsumerSentimentChart({
     setData(filteredData);
   }, [fullDataset, startDate, endDate, loading, error]);
 
-  // Use our custom hook to calculate the 50-day moving average
-  const { average: ma50, high, low, maLine } = useMovingAverage(fullDataset, {
-    windowSize: 50,
-    valueKey: 'value',
-    useTimeBased: true // Use time-based window (50 days) rather than count-based
-  });
+  // Calculate the range of values for risk level determination
+  let high = -Infinity;
+  let low = Infinity;
   
-  // Filter maLine to match the date range displayed on the chart
-  const filteredMALine = maLine.filter(point => {
-    if (!data.length) return true;
-    const minDate = Math.min(...data.map(d => d.date));
-    const maxDate = Math.max(...data.map(d => d.date));
-    return point.date >= minDate && point.date <= maxDate;
-  }) as MADataPoint[];
+  if (fullDataset.length > 0) {
+    // Find the highest and lowest values in the dataset
+    high = Math.max(...fullDataset.map(d => d.value));
+    low = Math.min(...fullDataset.map(d => d.value));
+  }
   
-  // Calculate the range of the 50-day MA
-  const maRange = high - low;
+  const valueRange = high - low;
   
   // Use the most recent data points or fallback to defaults
   const currentSentiment = data.length > 0 ? data[data.length - 1].value : 65;
   const previousSentiment = data.length > 1 ? data[data.length - 2].value : currentSentiment;
   
-  // For context, get the current 50-day MA value
-  const currentMA = filteredMALine.length > 0 ? filteredMALine[filteredMALine.length - 1].maValue : ma50;
+  // No longer using moving average
   
   // Determine if trend is up or down based on most recent points
   const isTrendUp = currentSentiment > previousSentiment;
   
-  // Calculate current position within the 50-day range (as a percentage)
+  // Calculate current position within the value range (as a percentage)
   let rangePosition = 0;
-  if (maRange > 0) {
+  if (valueRange > 0) {
     // Normalize current position within range (0 = at low, 1 = at high)
-    rangePosition = (currentSentiment - low) / maRange;
+    rangePosition = (currentSentiment - low) / valueRange;
   }
   
   // Determine risk level based on position within range and trend
@@ -255,15 +252,6 @@ export function ConsumerSentimentChart({
                     axisLabel: "Consumer Sentiment Index"
                   })}
                 />
-                <YAxis
-                  yAxisId="right"
-                  orientation="right"
-                  domain={['dataMin', 'dataMax']}
-                  hide={!overlayOptions.showNasdaq}
-                  tickLine={overlayOptions.showNasdaq}
-                  axisLine={overlayOptions.showNasdaq}
-                  tickFormatter={(value) => value.toLocaleString()}
-                />
                 <ChartTooltip
                   content={
                     <ChartTooltipContent
@@ -282,21 +270,7 @@ export function ConsumerSentimentChart({
                   }
                 />
                 
-                {/* Add the 200-day moving average dotted line */}
-                <Line
-                  data={filteredMALine}
-                  type="monotone"
-                  dataKey="maValue" // Using a different dataKey to avoid conflicts
-                  yAxisId="left"
-                  name="50-day MA"
-                  stroke="hsl(var(--foreground))"
-                  strokeWidth={1.5}
-                  strokeDasharray="5 5"
-                  dot={false}
-                  activeDot={false}
-                  connectNulls={true}
-                  isAnimationActive={false}
-                />
+                {/* Moving average line removed as requested */}
                 
                 {/* Main sentiment line with dots */}
                 <Line
