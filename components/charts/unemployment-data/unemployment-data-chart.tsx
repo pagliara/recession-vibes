@@ -584,7 +584,6 @@ export function UnemploymentDataChart({
               }}
               className="h-[300px]"
             >
-              <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis 
@@ -604,18 +603,12 @@ export function UnemploymentDataChart({
                     })}
                   />
                   <YAxis 
+                    yAxisId="left"
                     {...createResponsiveYAxis({
-                      isMobile,
+                      isMobile: isMobile,
+                      axisLabel: getChartValueLabel(),
                       domain: getYAxisDomain(),
-                      tickFormatter: getYAxisTickFormatter,
-                      mobileWidth: 50,
-                      desktopWidth: 100, // Increased to accommodate longer labels
-                      mobileFontSize: 10,
-                      desktopFontSize: 12,
-                      allowDataOverflow: false,
-                      allowDecimals: dataType !== 'unemploy',
-                      axisLabel: dataType === 'u1rate' ? 'Rate (%)' : dataType === 'unemploy' ? 'Population' : 'Employment Ratio',
-                      labelOffset: -40 // Increased offset to prevent label clipping
+                      tickFormatter: getYAxisTickFormatter
                     })}
                   />
                   
@@ -654,6 +647,7 @@ export function UnemploymentDataChart({
                     type="monotone"
                     dataKey="maValue" // Using a different dataKey to avoid conflicts
                     name="200-day MA"
+                    yAxisId="left"
                     stroke="hsl(var(--foreground))"
                     strokeWidth={1.5}
                     strokeDasharray="5 5"
@@ -668,6 +662,7 @@ export function UnemploymentDataChart({
                     type="monotone"
                     dataKey="value"
                     name={getChartTitle()}
+                    yAxisId="left"
                     stroke={riskLevel === "high" ? "rgb(220, 38, 38)" : riskLevel === "medium" ? "rgb(202, 138, 4)" : "rgb(22, 163, 74)"}
                     strokeWidth={2}
                     // Use the dot property to control density
@@ -698,9 +693,8 @@ export function UnemploymentDataChart({
                   {/* NASDAQ Overlay */}
                   {renderNasdaqOverlay(processedNasdaqData, overlayOptions.showNasdaq, isMobile)}
                   
-                  {renderRecessionReferenceAreas()} {/* Use recession overlay */}
+                  {overlayOptions.showRecessions && renderRecessionReferenceAreas()} {/* Use recession overlay */}
                 </ComposedChart>
-              </ResponsiveContainer>
             </ChartContainer>
           </div>
 

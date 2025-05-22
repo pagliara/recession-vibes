@@ -509,7 +509,7 @@ export function YieldCurveChart({
                   />
                 ))}
              
-              <Legend verticalAlign="top" height={36} />
+             {overlayOptions.showNasdaq && <Legend verticalAlign="top" height={36} />}
               {/* Add NASDAQ overlay components if enabled */}
               {renderNasdaqOverlay(processedNasdaqData, overlayOptions.showNasdaq, isMobile)}
               {/* Add recession overlay components if enabled */}

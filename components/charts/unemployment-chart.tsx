@@ -150,7 +150,6 @@ export function UnemploymentChart({
           }}
           className="h-[200px]"
         >
-          <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={processedData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis 
@@ -220,7 +219,6 @@ export function UnemploymentChart({
                 dot={false}
               />
             </ComposedChart>
-          </ResponsiveContainer>
         </ChartContainer>
       </div>
 

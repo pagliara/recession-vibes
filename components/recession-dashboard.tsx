@@ -38,7 +38,7 @@ export default function RecessionDashboard({
   const [dateRange, setDateRange] = useState({
     startDate: (() => {
       const date = new Date();
-      date.setFullYear(date.getFullYear() - 5); // Set to 5 years ago
+      date.setFullYear(date.getFullYear() - 10); // Set to 10 years ago
       return date.toISOString().split('T')[0];
     })(),
     endDate: new Date().toISOString().split('T')[0],
