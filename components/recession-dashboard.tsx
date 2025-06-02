@@ -65,17 +65,10 @@ export default function RecessionDashboard({
 
   return (
     <div className="container mx-auto px-4 sm:px-8 py-4">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 mb-2">
-        <div>
-          <RecessionProbabilityGauge probability={recessionProbability} />
-        </div>
-        <div>
-          <LatestBlogPost />
-        </div>
-      </div>
-
+      <LatestBlogPost />
+      
       {/* Sticky controls bar with date range and overlay selectors */}
-      <div className="sticky top-0 py-2 z-50">
+      <div className="sticky top-0 py-2 z-40">
         <div className="flex justify-end gap-3 items-center mb-4">
           <div className="flex items-center gap-2">
             <DateRangeSelector 

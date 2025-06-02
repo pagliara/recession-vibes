@@ -18,7 +18,7 @@ export function Header() {
             />
             <span className="text-2xl md:text-3xl font-bold flex items-center flex-wrap">
               <span className='mr-2'>Recession Vibes</span>
-              <h1 className="text-sm text-muted-foreground">
+              <h1 className="text-sm text-muted-foreground mr-2">
                 Economic Indicators Dashboard
               </h1>
               <h2 className="text-sm font-thin text-muted-foreground">

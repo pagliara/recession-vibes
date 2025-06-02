@@ -1,0 +1,55 @@
+/* Ticker animation styles */
+.ticker-container {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+  mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+}
+
+.ticker-wrapper {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+.ticker-text {
+  display: inline-block;
+  white-space: nowrap;
+  color: white;
+  text-decoration: none;
+  font-weight: 500;
+  animation: ticker 60s linear infinite;
+  /* Start with content already visible in the container */
+  animation-delay: -30s;
+}
+
+.ticker-headline {
+  display: inline-block;
+  margin-right: 0.5rem;
+}
+
+.ticker-headline a {
+  color: white;
+  text-decoration: none;
+}
+
+.ticker-headline a:hover {
+  color: #ffc107;
+  text-decoration: underline;
+}
+
+.ticker-separator {
+  display: inline-block;
+  margin: 0 0.5rem;
+  color: #ffc107;
+}
+
+@keyframes ticker {
+  0% {
+    transform: translateX(50%); /* Start with content already in view */
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
