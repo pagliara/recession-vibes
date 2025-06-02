@@ -89,6 +89,21 @@ export function Footer() {
           ))}
         </ul>
       </div>
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold mb-2">Open Source</h2>
+        <p className="text-sm text-muted-foreground">
+          This project is open source and available on{" "}
+          <a 
+            href="https://github.com/pagliara/recession-vibes" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            GitHub
+          </a>.
+          Contributions, suggestions, and feedback are welcome!
+        </p>
+      </div>
       <div className="text-xs text-muted-foreground">
         <p>© {new Date().getFullYear()} Recession Vibes. Updated {new Date().toLocaleDateString()}</p>
         <p>This dashboard is for informational purposes only and should not be considered as financial advice.</p>
