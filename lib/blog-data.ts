@@ -18,11 +18,6 @@ export const blogPosts: BlogPost[] = [
     author: "Jane Economist",
     slug: "yield-curve-inversion-economy",
     content: `
-Great, I’ll create an in-depth blog article explaining how the U.S. Treasury yield curve spread works as a predictor of economic recessions, focusing on the 10-year minus 2-year and 10-year minus 3-month differences. I’ll incorporate recent news from the past six months, charts, and historical data trends to make the topic accessible for a general audience.
-
-I’ll let you know once everything is ready for your review.
-
-
 # Unraveling the Yield Curve: Why the 10–2 and 10–3 Spreads Predict Recessions
 
 **Introduction**
