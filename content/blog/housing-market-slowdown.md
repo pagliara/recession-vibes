@@ -9,6 +9,9 @@ slug: "housing-market-slowdown"
 
 # Housing Market Slowdown: Recession Harbinger or Healthy Correction?
 
+![Housing Market Trends](/assets/blog/yield-curve.png)
+*Figure 1: Recent trends in the housing market show a notable slowdown in price growth and sales volume.*
+
 Housing starts and home sales are declining. We examine whether this signals broader economic trouble ahead.
 
 ## The Current Housing Market

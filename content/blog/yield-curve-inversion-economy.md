@@ -5,9 +5,12 @@ excerpt: "The yield curve has been inverted for several months. Here's what hist
 date: "May 10, 2025"
 author: "Jane Economist"
 slug: "yield-curve-inversion-economy"
+references:
+  - "Reserve Bank of Australia. (2023). Bonds and the Yield Curve. *Explainer*. Retrieved June 10, 2025, from https://www.rba.gov.au/education/resources/explainers/bonds-and-the-yield-curve.html"
+  - "US Funds. (2023). The Yield Curve Inversion Just Ended, but Economic Risks Remain. *US Funds Research*. Retrieved June 10, 2025, from https://www.usfunds.com/resource/the-yield-curve-inversion-just-ended-but-economic-risks-remain/"
 ---
 
-# Unraveling the Yield Curve: Why the 10–2 and 10–3 Spreads Predict Recessions
+## Unraveling the Yield Curve: Why the 10–2 and 10–3 Spreads Predict Recessions
 
 **Introduction**
 
@@ -17,17 +20,18 @@ Among finance watchers, few indicators spark as much discussion as the **U.S. Tr
 
 The *yield curve* refers to the relationship between bond yields (interest rates) and their maturities. For U.S. Treasuries, it's often visualized as a curve plotting yields for bonds of various terms – from very short (3-month, 1-year) to medium-term (2-year, 5-year) to long-term (10-year, 30-year). Under normal economic conditions, this curve slopes upward. Investors usually demand **higher yields for longer-term bonds** to compensate for the risks of time (like inflation or uncertainty), while short-term bonds have lower yields. In a **normal yield curve**, a 10-year bond's interest rate will be higher than a 2-year bond's rate, which in turn is higher than a 3-month bill's rate. The difference in yield between any two maturities is called a **yield spread** or slope. Two closely watched spreads are: **10-year minus 2-year yield** (often abbreviated "10–2 spread") and **10-year minus 3-month yield** (the spread used by many recession models). A positive spread means the longer-term rate is higher than the shorter-term rate (an upward slope), while a **negative spread** means the curve is inverted (short-term rate higher than long-term).
 
-*Illustration: Typical shapes of the yield curve.* An upward-sloping "normal" curve (top) has higher yields for longer terms; an "inverted" curve (bottom) slopes downward with short-term yields exceeding long-term yields, and a "flat" curve (middle) is nearly horizontal. In practice, the U.S. yield curve tends to be normal during economic expansions, flattens when growth prospects are uncertain, and inverts on the eve of slowdowns.
+![Illustration: Typical shapes of the yield curve.](/assets/blog/yield-curve.png)
+*Illustration: Typical shapes of the yield curve.* An upward-sloping "normal" curve (top) has higher yields for longer terms; an "inverted" curve (bottom) slopes downward with short-term yields exceeding long-term yields, and a "flat" curve (middle) is nearly horizontal. In practice, the U.S. yield curve tends to be normal during economic expansions, flattens when growth prospects are uncertain, and inverts on the eve of slowdowns. [^1]
 
 ## Inverted Yield Curve: A Harbinger of Recession
 
-When the yield curve **inverts**, it signals something very unusual: investors are accepting *lower* returns on long-term bonds than on short-term bonds. Why would they do that? The most common explanation is that **markets expect future interest rates to drop** – typically because of a weakening economy that will force the Federal Reserve to **cut short-term rates**. In other words, an inverted curve reflects a belief that today's high short-term rates won't last; growth and inflation will likely slow, so long-term yields fall in anticipation of easier monetary policy. An inversion is often interpreted as a vote of *no confidence* in the near-term economy.
+When the yield curve **inverts**, it signals something very unusual: investors are accepting *lower* returns on long-term bonds than on short-term bonds. Why would they do that? The most common explanation is that **markets expect future interest rates to drop** – typically because of a weakening economy that will force the Federal Reserve to **cut short-term rates**. In other words, an inverted curve reflects a belief that today's high short-term rates won't last; growth and inflation will likely slow, so long-term yields fall in anticipation of easier monetary policy[^2]. An inversion is often interpreted as a vote of *no confidence* in the near-term economy.
 
 *Chart: U.S. Treasury yield curve spreads vs. recessions.* The blue line shows the 10-year minus 3-month yield spread and the red line shows the 10-year minus 2-year spread. When the lines dip below zero, the yield curve is inverted. Shaded gray areas indicate U.S. recessions. As shown, **each recession was preceded by an inversion of the yield curve** – the spreads turned negative before every downturn in recent decades. (Source: Federal Reserve Bank of St. Louis)
 
 ## Why Is the Yield Curve a Leading Indicator?
 
-What makes the yield curve such a reliable predictor of recessions? One main explanation is that it reflects **collective market wisdom**. Bond traders are constantly weighing economic data, policy shifts, and business conditions to make bets on future interest rates. When a broad consensus of investors expects weakness ahead, the curve inverts. Another explanation is the **financial transmission mechanism** – an inverted yield curve changes borrowing dynamics for banks (who borrow short-term and lend long-term). When short rates exceed long rates, lending becomes less profitable, potentially restricting credit when it's most needed. Finally, there's the **psychological effect** – the attention paid to an inversion can become self-fulfilling as businesses and consumers grow cautious.
+What makes the yield curve such a reliable predictor of recessions? One main explanation is that it reflects **collective market wisdom**. Bond traders are constantly weighing economic data, policy shifts, and business conditions to make bets on future interest rates[^2]. When a broad consensus of investors expects weakness ahead, the curve inverts. Another explanation is the **financial transmission mechanism** – an inverted yield curve changes borrowing dynamics for banks (who borrow short-term and lend long-term). When short rates exceed long rates, lending becomes less profitable[^3], potentially restricting credit when it's most needed. Finally, there's the **psychological effect** – the attention paid to an inversion can become self-fulfilling as businesses and consumers grow cautious.
 
 ## Recent Developments: An Unprecedented Inversion and "Steepening" in 2022–2025
 

@@ -1,9 +1,6 @@
 import fs from 'fs'
 import path from 'path'
 import matter from 'gray-matter'
-import { remark } from 'remark'
-import html from 'remark-html'
-import gfm from 'remark-gfm'
 import { BlogPost } from '@/lib/blog-utils'
 
 const postsDirectory = path.join(process.cwd(), 'content/blog')
@@ -32,7 +29,8 @@ export async function getBlogPostBySlug(slug: string): Promise<BlogPost | undefi
       date: data.date,
       author: data.author,
       content,
-      slug: data.slug
+      slug: data.slug,
+      references: data.references || []
     }
   } catch (error) {
     console.error(`Error getting blog post by slug ${slug}:`, error)
@@ -46,19 +44,8 @@ export async function getBlogPostBySlugWithHtml(slug: string): Promise<BlogPost 
   if (!post) {
     return undefined
   }
-  
-  // Use remark with GFM plugin to convert markdown into HTML with extended features
-  const processedContent = await remark()
-    .use(gfm)  // GitHub Flavored Markdown for tables, task lists, etc.
-    .use(html)
-    .process(post.content)
-    
-  const contentHtml = processedContent.toString()
-  
-  return {
-    ...post,
-    contentHtml
-  }
+
+  return post
 }
 
 export async function getAllBlogPosts(): Promise<BlogPost[]> {

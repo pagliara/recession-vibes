@@ -2,6 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Reference link styles */
+.reference-link {
+  @apply inline-flex items-baseline;
+  line-height: 1;
+  vertical-align: baseline;
+  margin: 0 0.1em;
+  top: -0.4em;
+  position: relative;
+  font-size: 0.8em;
+}
+
+.reference-link a {
+  @apply no-underline text-blue-600 dark:text-blue-400 hover:underline;
+  text-underline-offset: 2px;
+}
+
+.reference-link a:focus {
+  @apply outline-none ring-2 ring-blue-500 rounded;
+}
+
+/* Style for the references section */
+.references-list {
+  counter-reset: reference-counter;
+}
+
+.references-list li {
+  counter-increment: reference-counter;
+  position: relative;
+  padding-left: 2em;
+  margin-bottom: 0.75em;
+}
+
+.references-list li::before {
+  content: counter(reference-counter) ".";
+  position: absolute;
+  left: 0;
+  font-weight: 600;
+  color: #3b82f6; /* blue-500 */
+}
+
 body {
   font-family: Arial, Helvetica, sans-serif;
 }

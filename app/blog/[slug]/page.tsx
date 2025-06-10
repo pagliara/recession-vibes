@@ -39,6 +39,9 @@ export async function generateMetadata({
     }
   }
 
+  // Extract references from the post frontmatter if they exist
+  const references = post.references || [];
+
   return {
     title: post.title,
     description: post.excerpt,
@@ -48,6 +51,9 @@ export async function generateMetadata({
       type: 'article',
       publishedTime: post.date,
       authors: [post.author],
+    },
+    other: {
+      references: references.join('\n'),
     },
   }
 }
