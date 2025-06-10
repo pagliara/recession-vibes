@@ -1,6 +1,6 @@
 import Link from "next/link"
-import { blogPosts } from "@/lib/blog-data"
 import type { Metadata } from "next"
+import { getAllBlogPosts } from "@/app/api/blog/blog-server"
 
 export const metadata: Metadata = {
   title: "Recession Vibes Blog",
@@ -16,9 +16,9 @@ export const runtime = "nodejs";
 // Revalidate in seconds (1 day = 86400 seconds)
 export const revalidate = 86400;
 
-export default function BlogIndexPage() {
-  // Sort posts by date (newest first)
-  const sortedPosts = [...blogPosts].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+export default async function BlogIndexPage() {
+  // Get all posts from the server-side function
+  const sortedPosts = await getAllBlogPosts()
 
   return (
     <div className="container mx-auto px-4 py-8">

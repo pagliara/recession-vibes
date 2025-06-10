@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { Header } from '@/components/layout/header'
-import Script from 'next/script'
+import { Analytics } from '@/components/analytics'
 
 export const metadata: Metadata = {
   title: 'Recession Vibes | Economic Indicators Dashboard',
@@ -18,7 +18,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="min-h-screen bg-background font-sans antialiased">
         <Header />
-        <Script src="https://scripts.simpleanalyticscdn.com/latest.js"  />
+        <Analytics />
         <main>
           {children}
         </main>

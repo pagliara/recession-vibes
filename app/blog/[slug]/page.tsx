@@ -1,44 +1,60 @@
 import { BlogPostLayout } from "@/components/blog-post-layout"
-import { blogPosts, getBlogPostBySlug } from "@/lib/blog-data"
+import { getBlogPostSlugs, getBlogPostBySlugWithHtml } from "@/app/api/blog/blog-server"
 import { notFound } from "next/navigation"
-import type { Metadata, ResolvingMetadata } from "next"
+import type { Metadata } from "next"
 
 type Props = {
   params: { slug: string }
+  searchParams: { [key: string]: string | string[] | undefined }
 }
 
 export async function generateStaticParams() {
-  return blogPosts.map((post) => ({
-    slug: post.slug,
+  const slugs = await getBlogPostSlugs()
+  return slugs.map((slug) => ({
+    slug,
   }))
 }
 
 // Force static pages
-export const dynamic = "force-static";
+export const dynamic = "force-static"
 
 // CDN cache currently only works on nodejs runtime
-export const runtime = "nodejs";
+export const runtime = "nodejs"
 
 // Revalidate in seconds (1 day = 86400 seconds)
-export const revalidate = 86400;
+export const revalidate = 86400
 
-export async function generateMetadata({ params }: Props, parent: ResolvingMetadata): Promise<Metadata> {
-  const post = await getBlogPostBySlug((await params).slug)
+export async function generateMetadata({
+  params,
+}: Props): Promise<Metadata> {
+  // read route params
+  const { slug } = await params;
+  
+  // fetch data
+  const post = await getBlogPostBySlugWithHtml(slug)
 
   if (!post) {
     return {
-      title: "Post Not Found",
+      title: 'Post Not Found',
     }
   }
 
   return {
     title: post.title,
     description: post.excerpt,
+    openGraph: {
+      title: post.title,
+      description: post.excerpt,
+      type: 'article',
+      publishedTime: post.date,
+      authors: [post.author],
+    },
   }
 }
 
 export default async function BlogPostPage({ params }: Props) {
-  const post = await getBlogPostBySlug((await params).slug)
+  const { slug } = await params;
+  const post = await getBlogPostBySlugWithHtml(slug)
 
   if (!post) {
     notFound()
